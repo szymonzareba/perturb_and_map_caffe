@@ -270,6 +270,7 @@ message ParamSpec {
 // Update the next available ID when you add a new LayerParameter field.
 //
 // LayerParameter next available layer-specific ID: 137 (last added: reduction_param)
+// MLG - start with 3. ID: 303 (last added: RBMReturnParameter)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -351,7 +352,87 @@ message LayerParameter {
   optional TanHParameter tanh_param = 127;
   optional ThresholdParameter threshold_param = 128;
   optional WindowDataParameter window_data_param = 129;
+  optional RBMParameter rbm_param = 301;
+  optional RBMReturnParameter rbm_return_param = 302;
 }
+
+
+////////////////////////
+///// MLG Protobuf /////
+////////////////////////
+
+message RBMReturnParameter {
+
+}
+
+enum LogLikelihoodAprox {
+    AIS = 0;
+    RAIS = 1;
+    CSL = 2;
+    REC = 3;
+}
+
+message RBMParameter {
+  optional uint32 num_hidden = 1; // The number of hidden units for the layer
+  optional FillerParameter w_filler = 2; // The filler for the weights
+  optional FillerParameter b_filler = 3; // The filler for the bias
+  optional FillerParameter c_filler = 4; // The filler for the bias  
+  optional LogLikelihoodAprox llAprox = 5 [default = AIS];
+  optional int32 axis = 6 [default = 1];
+  
+  // Gradient specific parameters
+  optional RBMCDParameter rbm_cd_param = 7;
+  optional RBMPCDParameter rbm_pcd_param = 12;
+  optional RBMPMParameter rbm_pm_param = 13;
+  
+  // ll specific parameters
+  optional CSLLogLikelihoodApprox csl_llaprox_param = 8;
+  optional AISLogLikelihoodApprox ais_llaprox_param = 9;
+  optional RAISLogLikelihoodApprox rais_llaprox_param = 10;
+  optional RECLogLikelihoodApprox rec_llaprox_param = 11;  
+}
+
+
+message RBMCDParameter {
+  optional uint32 gibbs_steps = 1 [default = 1];
+}
+
+message RBMPCDParameter {
+  optional uint32 gibbs_steps = 1 [default = 1];
+}
+
+enum MAPMethod {
+    CoordinateDescent = 0;
+}
+
+message RBMPMParameter {
+	optional MAPMethod map_method = 1 [default = CoordinateDescent];
+	optional uint32 batch_repeats = 2 [default = 1];
+	
+	// map parameters
+	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
+}
+
+message CoordinateDescentMAPParameter {
+	optional uint32 descent_steps = 1 [default = 1];
+}
+
+message CSLLogLikelihoodApprox {
+}
+
+message RECLogLikelihoodApprox {
+}
+
+message AISLogLikelihoodApprox {
+}
+
+message RAISLogLikelihoodApprox {
+}
+
+
+////////////////////////////
+///// END MLG Protobuf /////
+////////////////////////////
 
 // Message that stores parameters used to apply transformation
 // to the data layer's data
