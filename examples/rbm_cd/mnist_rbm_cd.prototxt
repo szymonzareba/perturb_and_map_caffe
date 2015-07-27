@@ -1,0 +1,109 @@
+name: "MNISTRBM"
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_cd/mnist_train_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TEST
+    stage: "test-on-train"
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_cd/mnist_train_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TEST
+    stage: "test-on-test"
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_cd/mnist_test_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+
+layer {
+  name: "rbmcd1"
+  type: "RBMCD"
+  bottom: "data"
+  top : "rbm1HOut"
+  top : "rbm1HIn"  
+  top : "rbm1loss"
+  
+  loss_weight : 0
+  loss_weight : 0
+  loss_weight : 1
+  
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  
+  rbm_param{
+    num_hidden: 100
+    llAprox: REC
+    w_filler {
+      type: "uniform"
+      min: -0.035
+      max: 0.035
+    }
+    b_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
+    c_filler {
+      type: "constant"
+      value: -1
+    }
+    rbm_cd_param {
+      gibbs_steps : 5
+    }        
+    rbm_pcd_param {
+      gibbs_steps : 5
+    }
+  }
+}
+
+layer {
+  name: "rbmreturn"
+  type: "RBMReturn"
+  bottom: "rbm1HOut"
+  bottom: "rbm1HIn"
+}

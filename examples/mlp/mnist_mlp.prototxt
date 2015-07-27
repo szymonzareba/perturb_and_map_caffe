@@ -1,0 +1,107 @@
+name: "MLP"
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/mlp/mnist_train_lmdb"
+    batch_size: 64
+    backend: LMDB
+  }
+}
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/mlp/mnist_test_lmdb"
+    batch_size: 65
+    backend: LMDB
+  }
+}
+
+layer {
+  name: "InnerProduct_1"
+  type: "InnerProduct"
+  bottom: "data"
+  top: "inner1_sigmoid2"
+  param {
+  }
+  param {
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 10000
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "Sigmoid_2"
+  type: "Sigmoid"
+  bottom: "inner1_sigmoid2"
+  top: "sigmoid2_inner3"
+}
+layer {
+  name: "InnerProduct_3"
+  type: "InnerProduct"
+  bottom: "sigmoid2_inner3"
+  top: "inner3_sigmoid4"
+  param {
+  }
+  param {
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 10
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "Sigmoid_4"
+  type: "Sigmoid"
+  bottom: "inner3_sigmoid4"
+  top: "sigmoid4_softmax51"
+}
+
+layer {
+  name: "Softmax5_1"
+  type: "SoftmaxWithLoss"
+  bottom: "sigmoid4_softmax51"
+  bottom: "label"
+  top: "loss"
+}
+
+layer {
+  name: "accuracy5_2"
+  type: "Accuracy"
+  bottom: "sigmoid4_softmax51"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
