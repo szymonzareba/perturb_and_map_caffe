@@ -403,6 +403,7 @@ message RBMPCDParameter {
 
 enum MAPMethod {
     CoordinateDescent = 0;
+    FreeEnergyGradientDescent = 1;
 }
 
 message RBMPMParameter {
@@ -411,6 +412,13 @@ message RBMPMParameter {
 	
 	// map parameters
 	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
+	optional FreeEnergyGradientDescentMAPParameter fegd_param = 4;
+}
+
+message FreeEnergyGradientDescentMAPParameter {
+	optional uint32 descent_steps = 1 [default = 1];
+	optional float eta_0 = 2 [default = 0.1];
+	optional float eta_decay = 3 [default = 0];
 }
 
 message CoordinateDescentMAPParameter {

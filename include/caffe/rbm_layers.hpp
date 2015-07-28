@@ -122,7 +122,7 @@ class RBMPMLayer : public RBMLayer<Dtype> {
   explicit RBMPMLayer(const LayerParameter& param)
       : RBMLayer<Dtype>(param) {}
   virtual inline const char* type() const { return "RBM PM"; }
-  enum { CoordinateDescent };
+  enum { CoordinateDescent, FreeEnergyGradientDescent };
 
  protected:
   virtual void find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);

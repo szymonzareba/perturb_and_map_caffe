@@ -22,14 +22,7 @@ void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 					  (Dtype)0., HS);
 
 			caffe_add(H->count(), HS, c->cpu_data(), HS);
-/*
-			LOG(INFO) << "HS : "
-					  << HS[0] << " "
-					  << HS[1] << " "
-					  << HS[2] << " "
-					  << HS[3] << " "
-					  << HS[4] << std::endl;
-*/
+
 			for(int i = 0; i < H->count(); i++){
 				if(HS[i] > (Dtype)0.){
 					HS[i] = (Dtype) 1.;
@@ -47,14 +40,7 @@ void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 
 				caffe_add(X->count(), XS, b->cpu_data(), XS);
-/*
-				LOG(INFO) << "XS : "
-						  << XS[0] << " "
-						  << XS[1] << " "
-						  << XS[2] << " "
-						  << XS[3] << " "
-						  << XS[4] << std::endl;
-*/
+
 				for(int i = 0; i < X->count(); i++){
 					if(XS[i] > (Dtype)0.){
 						XS[i] = (Dtype) 1.;
@@ -69,14 +55,7 @@ void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 						(Dtype)0., HS);
 
 				caffe_add(H->count(), HS, c->cpu_data(), HS);
-/*
-				LOG(INFO) << "HS : "
-						  << HS[0] << " "
-						  << HS[1] << " "
-						  << HS[2] << " "
-						  << HS[3] << " "
-						  << HS[4] << std::endl;
-*/
+
 				for(int i = 0; i < H->count(); i++){
 					if(HS[i] > (Dtype)0.){
 						HS[i] = (Dtype) 1.;
@@ -86,6 +65,11 @@ void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 				}
 
 			}
+		}
+		break;
+		case RBMPMLayer::FreeEnergyGradientDescent:
+		{
+			NOT_IMPLEMENTED;
 		}
 		break;
 		default:
