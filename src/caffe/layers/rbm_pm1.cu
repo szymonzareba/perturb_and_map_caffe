@@ -11,10 +11,47 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
       const vector<Blob<Dtype>*>& bottom){
 
+	const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
+
+	Blob<Dtype> repX;
+	replicate_data_gpu(repTimes, bottom[0], &repX);
+
+	Blob<Dtype> repH;
+	replicate_data_gpu(repTimes, top[0], &repH);
+
+/*
+	LOG(INFO) << "repX shape : " << repX.shape(0) << " " << repX.shape(1) << std::endl;
+	LOG(INFO) << "bottom[0] shape : " << bottom[0]->shape(0) << " " << bottom[0]->shape(1) << std::endl;
+
+	LOG(INFO) << "repH shape : " << repH.shape(0) << " " << repH.shape(1) << std::endl;
+	LOG(INFO) << "top[0] shape : " << top[0]->shape(0) << " " << top[0]->shape(1) << std::endl;
+*/
+
+/*
+	LOG(INFO) << "bot  301 : " << bottom[0]->cpu_data()[301] << std::endl;
+
+	LOG(INFO) << "repX 301 : " << repX.cpu_data()[301] << std::endl;
+	LOG(INFO) << "repX 301 : " << repX.cpu_data()[301 + repTimes * this->M_] << std::endl;
+*/
+
+/*
+	LOG(INFO) << "repH : " << repH.cpu_data()[20] << " " << repH.cpu_data()[50] << std::endl;
+	LOG(INFO) << "top  : " << top[0]->cpu_data()[20] << " " << top[0]->cpu_data()[50] << std::endl;
+*/
+
+	//create ones
+	vector<int> ones_shape(2);
+	ones_shape[0] = this->M_ * repTimes;
+	ones_shape[1] = 1;
+
+	Blob<Dtype> ones;
+	ones.Reshape(ones_shape);
+	caffe_gpu_set(ones.count(), Dtype(1), ones.mutable_gpu_data());
+
 	//create tmp for parameters
     vector<int> bias_shape(2);
 
-    bias_shape[0] = this->M_;
+    bias_shape[0] = this->M_ * repTimes;
     bias_shape[1] = this->K_;
 
 
@@ -22,11 +59,11 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	bTmp.Reshape( bias_shape );
 
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-			this->M_, this->K_, 1,
-			(Dtype)1., this->ones_m_.gpu_data(), this->blobs_[1]->gpu_data(),
+			this->M_ * repTimes, this->K_, 1,
+			(Dtype)1., ones.gpu_data(), this->blobs_[1]->gpu_data(),
 			(Dtype)0., bTmp.mutable_gpu_data());
 
-    bias_shape[0] = this->M_;
+    bias_shape[0] = this->M_ * repTimes;
     bias_shape[1] = this->N_;
 
 
@@ -34,8 +71,8 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	cTmp.Reshape( bias_shape );
 
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-			this->M_, this->N_, 1,
-			(Dtype)1., this->ones_m_.gpu_data(), this->blobs_[2]->gpu_data(),
+			this->M_ * repTimes, this->N_, 1,
+			(Dtype)1., ones.gpu_data(), this->blobs_[2]->gpu_data(),
 			(Dtype)0., cTmp.mutable_gpu_data());
 
 
@@ -56,20 +93,26 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	caffe_gpu_add(bTmp.count(), cTmpMutable, ra.gpu_data(), cTmpMutable);
 
 
-	Dtype scalar =  -1. / this->M_;
-	const Dtype* X0S = bottom[0]->gpu_data();
-	const Dtype* H0S = top[0]->gpu_data();
+	Dtype scalar =  -1. / ( this->M_ * repTimes );
 
-	Dtype* X1S = this->X1S_.mutable_gpu_data();
-	Dtype* H1S = this->H1S_.mutable_gpu_data();
+	Blob<Dtype> X1;
+	X1.ReshapeLike(repX);
 
-	caffe_copy(bottom[0]->count(), X0S, X1S);
-	caffe_copy(top[0]->count(), H0S, H1S);
+	Blob<Dtype> H1;
+	H1.ReshapeLike(repH);
 
-	find_map_gpu(&(this->X1S_), &(this->H1S_), &bTmp, &cTmp, this->blobs_[0].get());
+	const Dtype* X0S = repX.gpu_data();
+	const Dtype* H0S = repH.gpu_data();
+	Dtype* X1S = X1.mutable_gpu_data();
+	Dtype* H1S = H1.mutable_gpu_data();
 
-	X1S = this->X1S_.mutable_gpu_data();
-	H1S = this->H1S_.mutable_gpu_data();
+	caffe_copy(repX.count(), X0S, X1S);
+	caffe_copy(repH.count(), H0S, H1S);
+
+	find_map_gpu(&X1, &H1, &bTmp, &cTmp, this->blobs_[0].get());
+
+	X1S = X1.mutable_gpu_data();
+	H1S = H1.mutable_gpu_data();
 
 
 
@@ -79,12 +122,12 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 		Blob<Dtype> tmp2(this->blobs_[0]->shape());
 
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    			this->N_, this->K_, this->M_,
+    			this->N_, this->K_, this->M_ * repTimes,
     			(Dtype)1., H0S, X0S,
     			(Dtype)0., tmp1.mutable_gpu_data());
 
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    			this->N_, this->K_, this->M_,
+    			this->N_, this->K_, this->M_ * repTimes,
     			(Dtype)1., H1S, X1S,
     			(Dtype)0., tmp2.mutable_gpu_data());
 
@@ -93,24 +136,24 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	}
 
 	if (this->param_propagate_down_[1]) {
-		Blob<Dtype> tmp(bottom[0]->shape());
+		Blob<Dtype> tmp(repX.shape());
 
-		caffe_gpu_sub(bottom[0]->count(), X0S, X1S, tmp.mutable_gpu_data());
+		caffe_gpu_sub(tmp.count(), X0S, X1S, tmp.mutable_gpu_data());
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    			this->K_, 1, this->M_,
-    			(Dtype)1., tmp.gpu_data(), this->ones_m_.gpu_data(),
+    			this->K_, 1, this->M_ * repTimes,
+    			(Dtype)1., tmp.gpu_data(), ones.gpu_data(),
     			(Dtype)0., this->blobs_[1]->mutable_gpu_diff());
 
     	caffe_gpu_scal<Dtype>(this->blobs_[1]->count(), scalar, this->blobs_[1]->mutable_gpu_diff());
 	}
 
 	if (this->param_propagate_down_[2]) {
-		Blob<Dtype> tmp(top[0]->shape());
+		Blob<Dtype> tmp(repH.shape());
 
-		caffe_gpu_sub(top[0]->count(), H0S, H1S, tmp.mutable_gpu_data());
+		caffe_gpu_sub(tmp.count(), H0S, H1S, tmp.mutable_gpu_data());
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    			this->N_, 1, this->M_,
-    			(Dtype)1., tmp.gpu_data(), this->ones_m_.gpu_data(),
+    			this->N_, 1, this->M_ * repTimes,
+    			(Dtype)1., tmp.gpu_data(), ones.gpu_data(),
     			(Dtype)0., this->blobs_[2]->mutable_gpu_diff());
 
     	caffe_gpu_scal<Dtype>(this->blobs_[2]->count(), scalar, this->blobs_[2]->mutable_gpu_diff());

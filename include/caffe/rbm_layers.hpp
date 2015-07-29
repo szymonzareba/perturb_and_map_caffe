@@ -127,6 +127,8 @@ class RBMPMLayer : public RBMLayer<Dtype> {
  protected:
   virtual void find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
   virtual void find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
+  virtual void replicate_data_cpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
+  virtual void replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
 };
 
 /**
