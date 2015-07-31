@@ -51,6 +51,12 @@ class MLGRNG {
 
 		void mlg_cpu_gumbel(const int N, Dtype* data);
 		void mlg_gpu_gumbel(const int N, Dtype* data);
+
+		void mlg_cpu_permutation(const int N, int* data);
+		void mlg_gpu_permutation(const int N, int* data);
+
+		void mlg_cpu_range(const int N, const int min, const int max, int* data);
+		void mlg_gpu_range(const int N, const int min, const int max, int* data);
 };
 
 template<typename Dtype>

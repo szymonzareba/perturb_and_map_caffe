@@ -37,6 +37,16 @@ void MLGRNG<Dtype>::mlg_cpu_gumbel(const int N, Dtype* data){
 	}
 }
 
+template <typename Dtype>
+void MLGRNG<Dtype>::mlg_cpu_permutation(const int N, int* data){
+	NOT_IMPLEMENTED;
+}
+
+template <typename Dtype>
+void MLGRNG<Dtype>::mlg_cpu_range(const int N, const int min, const int max, int* data){
+	NOT_IMPLEMENTED;
+}
+
 template MLGRNG<float>::MLGRNG();
 template MLGRNG<double>::MLGRNG();
 
@@ -54,5 +64,18 @@ void MLGRNG<float>::mlg_cpu_gumbel(const int N, float* data);
 
 template
 void MLGRNG<double>::mlg_cpu_gumbel(const int N, double* data);
+
+template
+void MLGRNG<float>::mlg_cpu_permutation(const int N, int* data);
+
+template
+void MLGRNG<double>::mlg_cpu_permutation(const int N, int* data);
+
+template
+void MLGRNG<float>::mlg_cpu_range(const int N, const int min, const int max, int* data);
+
+template
+void MLGRNG<double>::mlg_cpu_range(const int N, const int min, const int max, int* data);
+
 
 }

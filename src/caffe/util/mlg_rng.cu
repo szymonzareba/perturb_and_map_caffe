@@ -58,20 +58,83 @@ void MLGRNG<Dtype>::mlg_gpu_gumbel(const int N, Dtype* data){
 	CUDA_POST_KERNEL_CHECK;
 }
 
-template void MLGRNG<float>::mlg_gpu_uniform( \
+template <typename Dtype>
+__global__ void mlg_set_index_kernel(int n, int* numbers) {
+ CUDA_KERNEL_LOOP(index, n) {
+  numbers[index] = index;
+ }
+}
+
+
+template <typename Dtype>
+void MLGRNG<Dtype>::mlg_gpu_permutation(const int N, int* data){
+	mlg_set_index_kernel<Dtype><<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(N, data);
+	CUDA_POST_KERNEL_CHECK;
+
+	int* range;
+	cudaMalloc((void**) &range, N * sizeof(int));
+
+	mlg_gpu_range(N, 0, N-1, range);
+
+	for(int i = 0; i < N; i++){
+		int swapID = range[i];
+
+		int tmp = data[swapID];
+		data[swapID] = data[i];
+		data[i] = tmp;
+	}
+
+	cudaFree(range);
+}
+
+template <typename Dtype>
+__global__ void mlg_set_min_max_kernel(int n, int min, int max, Dtype* rand, int* numbers) {
+ CUDA_KERNEL_LOOP(index, n) {
+  numbers[index] = (((int)(rand[index] * 100000)) % (max - min + 1) ) + min;
+ }
+}
+
+template <typename Dtype>
+void MLGRNG<Dtype>::mlg_gpu_range(const int N, const int min, const int max, int* data){
+	Dtype* tmp;
+	cudaMalloc((void**) &tmp, N * sizeof(Dtype));
+	mlg_gpu_uniform(N, tmp);
+
+	mlg_set_min_max_kernel<Dtype><<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(N, min, max, tmp, data);
+	CUDA_POST_KERNEL_CHECK;
+
+	cudaFree(tmp);
+}
+
+template
+void MLGRNG<float>::mlg_gpu_uniform( \
 		const int N, \
 		float* data);
 
-template void MLGRNG<double>::mlg_gpu_uniform( \
+template
+void MLGRNG<double>::mlg_gpu_uniform( \
 		const int N, \
 		double* data);
 
-template void MLGRNG<float>::mlg_gpu_gumbel( \
+template
+void MLGRNG<float>::mlg_gpu_gumbel( \
 		const int N, \
 		float* data);
 
-template void MLGRNG<double>::mlg_gpu_gumbel( \
+template
+void MLGRNG<double>::mlg_gpu_gumbel( \
 		const int N, \
 		double* data);
 
+template
+void MLGRNG<float>::mlg_gpu_permutation(const int N, int* data);
+
+template
+void MLGRNG<double>::mlg_gpu_permutation(const int N, int* data);
+
+template
+void MLGRNG<float>::mlg_gpu_range(const int N, const int min, const int max, int* data);
+
+template
+void MLGRNG<double>::mlg_gpu_range(const int N, const int min, const int max, int* data);
 }
