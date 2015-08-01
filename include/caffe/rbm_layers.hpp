@@ -133,7 +133,7 @@ class RBMPMLayer : public RBMLayer<Dtype> {
 
 /**
  * @brief RBM layer for Forward and Backward calculation.
- * Includes Perturb and MAP order 1basic routines
+ * Includes Perturb and MAP order 1 basic routines
  */
 template <typename Dtype>
 class RBMPM1Layer : public RBMPMLayer<Dtype> {
@@ -147,6 +147,29 @@ class RBMPM1Layer : public RBMPMLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void gradient_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+};
+
+/**
+ * @brief RBM layer for Forward and Backward calculation.
+ * Includes Perturb and MAP order 2 basic routines
+ */
+template <typename Dtype>
+class RBMPM2Layer : public RBMPMLayer<Dtype> {
+ public:
+  explicit RBMPM2Layer(const LayerParameter& param)
+      : RBMPMLayer<Dtype>(param) {}
+  virtual inline const char* type() const { return "RBM PM1"; }
+
+  enum { Random };
+
+ protected:
+  virtual void gradient_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void gradient_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+  virtual void find_w_mask_gpu(Blob<Dtype>* W);
+  virtual void find_w_mask_cpu(Blob<Dtype>* W);
 };
 
 } // namespace Caffe

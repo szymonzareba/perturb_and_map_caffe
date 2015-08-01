@@ -14,34 +14,6 @@ void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 
 	//create tmp for parameters
     vector<int> bias_shape(2);
-/*
-    bias_shape[0] = 5;
-    bias_shape[1] = 5;
-    Blob<Dtype> testBlob;
-    testBlob.Reshape( bias_shape );
-
-    LOG(INFO) << "BEFORE : " << std::endl;
-	for(int i = 0; i < testBlob.count(); i++){
-		LOG(INFO) << testBlob.cpu_data()[i] << std::endl;
-	}
-
-	MLGRNG<Dtype>::getInstance().mlg_cpu_gumbel(testBlob.count(), testBlob.mutable_cpu_data());
-
-    LOG(INFO) << "FIRST : " << std::endl;
-	for(int i = 0; i < testBlob.count(); i++){
-		LOG(INFO) << testBlob.cpu_data()[i] << std::endl;
-	}
-
-	MLGRNG<Dtype>::getInstance().mlg_cpu_gumbel(testBlob.count(), testBlob.mutable_cpu_data());
-
-    LOG(INFO) << "SECOND : " << std::endl;
-	for(int i = 0; i < testBlob.count(); i++){
-		LOG(INFO) << testBlob.cpu_data()[i] << std::endl;
-	}
-*/
-
-
-
 
     bias_shape[0] = this->M_;
     bias_shape[1] = this->K_;
@@ -94,23 +66,6 @@ void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 	Dtype scalar =  1. / this->M_;
 	const Dtype* X0S = bottom[0]->cpu_data();
 	const Dtype* H0S = top[0]->cpu_data();
-/*
-	Dtype* H0S = top[0]->mutable_cpu_data();
-
-	caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-			  this->M_, this->N_, this->K_,
-			  (Dtype)1., X0S, this->blobs_[0]->cpu_data(),
-			  (Dtype)0., H0S);
-
-	for(int i = 0; i < top[0]->count(); i++){
-		H0S[i] = H0S[i] + cTmp.cpu_data()[i];
-	}
-	for(int i = 0; i < top[0]->count(); i++){
-		H0S[i] = sigmoid_cpu(H0S[i]);
-	}
-
-	sample_cpu(top[0]->count(), H0S);
-*/
 
 	Dtype* X1S = this->X1S_.mutable_cpu_data();
 	Dtype* H1S = this->H1S_.mutable_cpu_data();
@@ -120,40 +75,8 @@ void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 
 	find_map_cpu(&(this->X1S_), &(this->H1S_), &bTmp, &cTmp, this->blobs_[0].get());
 
-	//caffe_copy(bottom[0]->count(), X0S, X1S);
-	//caffe_copy(top[0]->count(), H0S, H1S);
-
 	X1S = this->X1S_.mutable_cpu_data();
 	H1S = this->H1S_.mutable_cpu_data();
-/*
-	LOG(INFO) << "XOS : "
-			  << X0S[0] << " "
-			  << X0S[1] << " "
-			  << X0S[2] << " "
-			  << X0S[3] << " "
-			  << X0S[4] << std::endl;
-
-	LOG(INFO) << "X1S : "
-			  << X1S[0] << " "
-			  << X1S[1] << " "
-			  << X1S[2] << " "
-			  << X1S[3] << " "
-			  << X1S[4] << std::endl;
-
-	LOG(INFO) << "H0S : "
-			  << H0S[0] << " "
-			  << H0S[1] << " "
-			  << H0S[2] << " "
-			  << H0S[3] << " "
-			  << H0S[4] << std::endl;
-
-	LOG(INFO) << "H1S : "
-			  << H1S[0] << " "
-			  << H1S[1] << " "
-			  << H1S[2] << " "
-			  << H1S[3] << " "
-			  << H1S[4] << std::endl;
-*/
 
 	if (this->param_propagate_down_[0]) {
 		Blob<Dtype> tmp1(this->blobs_[0]->shape());

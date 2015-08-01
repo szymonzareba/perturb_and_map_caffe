@@ -413,6 +413,21 @@ message RBMPMParameter {
 	// map parameters
 	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
 	optional FreeEnergyGradientDescentMAPParameter fegd_param = 4;
+	
+	// PM orders
+	optional RBMPM1Parameter rbm_pm1_param = 5;
+	optional RBMPM2Parameter rbm_pm2_param = 6;
+}
+
+message RBMPM1Parameter {
+}
+
+enum RBMPM2WPerturbation {
+    Random = 0;
+}
+
+message RBMPM2Parameter {
+	optional RBMPM2WPerturbation w_pert_param = 1 [default = Random];
 }
 
 message FreeEnergyGradientDescentMAPParameter {

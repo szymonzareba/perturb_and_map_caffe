@@ -3,50 +3,9 @@
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/rbm_layers.hpp"
+#include "caffe/util/mlg_math.hpp"
 
 namespace caffe {
-
-template <typename Dtype>
-__global__ void sample_ge0(const int n, Dtype* y) {
-  CUDA_KERNEL_LOOP(index, n) {
-	if(y[index] > (Dtype)0.){
-		y[index] = (Dtype) 1.;
-	}else{
-		y[index] = (Dtype) 0.;
-	}
-  }
-}
-
-template <typename Dtype>
-__global__ void sample_ge0_5(const int n, Dtype* y) {
-  CUDA_KERNEL_LOOP(index, n) {
-	if(y[index] > (Dtype)0.5){
-		y[index] = (Dtype) 1.;
-	}else{
-		y[index] = (Dtype) 0.;
-	}
-  }
-}
-
-template <typename Dtype>
-__global__ void add_scaled(const int n, const Dtype alpha, const Dtype* a, const Dtype beta, const Dtype* b, Dtype* x) {
-  CUDA_KERNEL_LOOP(index, n) {
-	x[index] = alpha * a[index] + beta * b[index];
-  }
-}
-
-template <typename Dtype>
-__global__ void relax_0_1(const int n, Dtype* x) {
-  CUDA_KERNEL_LOOP(index, n) {
-	if(x[index] > 1){
-		x[index] = 1;
-	}
-
-	if(x[index] < 0){
-		x[index] = 0;
-	}
-  }
-}
 
 template <typename Dtype>
 void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W){
@@ -65,7 +24,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
 
-			sample_ge0<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), H->mutable_gpu_data());
+			sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), H->mutable_gpu_data());
 			CUDA_POST_KERNEL_CHECK;
 
 			for(int descent = 0; descent < descentSteps; descent++){
@@ -77,7 +36,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 				caffe_gpu_add(X->count(), XS, b->gpu_data(), XS);
 
-				sample_ge0<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), X->mutable_gpu_data());
+				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), X->mutable_gpu_data());
 				CUDA_POST_KERNEL_CHECK;
 
 
@@ -89,7 +48,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 				caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
 
-				sample_ge0<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), H->mutable_gpu_data());
+				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), H->mutable_gpu_data());
 				CUDA_POST_KERNEL_CHECK;
 			}
 		}
@@ -130,14 +89,14 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 						(Dtype)1., XS);
 
 				// x = (1 * x) + (eta * b)
-				add_scaled<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), (Dtype) 1., XS, eta, b->gpu_data(), XS);
+				add_scaled_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), (Dtype) 1., XS, eta, b->gpu_data(), XS);
 				CUDA_POST_KERNEL_CHECK;
 
 				// bring back to [0, 1]
-				relax_0_1<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
+				relax_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 				CUDA_POST_KERNEL_CHECK;
 			}
-			sample_ge0_5<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
+			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 			CUDA_POST_KERNEL_CHECK;
 
 			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
@@ -157,13 +116,6 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 }
 
 template <typename Dtype>
-__global__ void replicate(const int xcount, const int repxcount, const Dtype* x, Dtype* repx) {
-  CUDA_KERNEL_LOOP(index, repxcount) {
-   repx[index] = x[index % xcount];
-  }
-}
-
-template <typename Dtype>
 void RBMPMLayer<Dtype>::replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX){
 
 	const int axis = X->CanonicalAxisIndex(this->layer_param_.rbm_param().axis());
@@ -176,7 +128,7 @@ void RBMPMLayer<Dtype>::replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dty
 
     repX->Reshape(repX_shape);
 
-    replicate<Dtype><<<CAFFE_GET_BLOCKS(repX->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), repX->count(), X->gpu_data(), repX->mutable_gpu_data());
+    replicate_kernel<Dtype><<<CAFFE_GET_BLOCKS(repX->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), repX->count(), X->gpu_data(), repX->mutable_gpu_data());
     CUDA_POST_KERNEL_CHECK;
 }
 

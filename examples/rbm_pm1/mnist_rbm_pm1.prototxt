@@ -11,7 +11,7 @@ layer {
   }
   data_param {
     source: "examples/rbm_pm1/mnist_train_lmdb"
-    batch_size: 100
+    batch_size: 10
     backend: LMDB
   }
 }
@@ -28,7 +28,7 @@ layer {
   }
   data_param {
     source: "examples/rbm_pm1/mnist_train_lmdb"
-    batch_size: 100
+    batch_size: 10
     backend: LMDB
   }
 }
@@ -45,7 +45,7 @@ layer {
   }
   data_param {
     source: "examples/rbm_pm1/mnist_test_lmdb"
-    batch_size: 100
+    batch_size: 10
     backend: LMDB
   }
 }
@@ -76,7 +76,7 @@ layer {
   }
   
   rbm_param{
-    num_hidden: 100
+    num_hidden: 500
     llAprox: REC
     w_filler {
       type: "gaussian"
@@ -94,11 +94,16 @@ layer {
       std: 0.05
     }
     rbm_pm_param {
-      map_method : CoordinateDescent
-      batch_repeats : 1
+      map_method : FreeEnergyGradientDescent
+      batch_repeats : 10
       coordinate_descent_param {
-       descent_steps : 5
+       descent_steps : 10
       }
+      fegd_param {
+       descent_steps : 50
+       eta_0 : 0.1
+       eta_decay : 0       
+      }      
     }        
   }
 }

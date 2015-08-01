@@ -19,26 +19,6 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	Blob<Dtype> repH;
 	replicate_data_gpu(repTimes, top[0], &repH);
 
-/*
-	LOG(INFO) << "repX shape : " << repX.shape(0) << " " << repX.shape(1) << std::endl;
-	LOG(INFO) << "bottom[0] shape : " << bottom[0]->shape(0) << " " << bottom[0]->shape(1) << std::endl;
-
-	LOG(INFO) << "repH shape : " << repH.shape(0) << " " << repH.shape(1) << std::endl;
-	LOG(INFO) << "top[0] shape : " << top[0]->shape(0) << " " << top[0]->shape(1) << std::endl;
-*/
-
-/*
-	LOG(INFO) << "bot  301 : " << bottom[0]->cpu_data()[301] << std::endl;
-
-	LOG(INFO) << "repX 301 : " << repX.cpu_data()[301] << std::endl;
-	LOG(INFO) << "repX 301 : " << repX.cpu_data()[301 + repTimes * this->M_] << std::endl;
-*/
-
-/*
-	LOG(INFO) << "repH : " << repH.cpu_data()[20] << " " << repH.cpu_data()[50] << std::endl;
-	LOG(INFO) << "top  : " << top[0]->cpu_data()[20] << " " << top[0]->cpu_data()[50] << std::endl;
-*/
-
 	//create ones
 	vector<int> ones_shape(2);
 	ones_shape[0] = this->M_ * repTimes;
@@ -113,9 +93,6 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 
 	X1S = X1.mutable_gpu_data();
 	H1S = H1.mutable_gpu_data();
-
-
-
 
 	if (this->param_propagate_down_[0]) {
 		Blob<Dtype> tmp1(this->blobs_[0]->shape());

@@ -76,7 +76,7 @@ layer {
   }
   
   rbm_param{
-    num_hidden: 500
+    num_hidden: 25
     llAprox: REC
     w_filler {
       type: "gaussian"
@@ -100,7 +100,7 @@ layer {
        descent_steps : 10
       }
       rbm_pm2_param {
-       w_pert_param : RANDOM
+       w_pert_param : Random
       }      
     }        
   }
