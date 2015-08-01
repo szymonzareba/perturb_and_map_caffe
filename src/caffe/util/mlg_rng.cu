@@ -68,6 +68,13 @@ __global__ void mlg_set_index_kernel(int n, int* numbers) {
 
 template <typename Dtype>
 void MLGRNG<Dtype>::mlg_gpu_permutation(const int N, int* data){
+
+	int* tmp = new int[N];
+	mlg_cpu_permutation(N, tmp);
+	cudaMemcpy(data, tmp, N * sizeof(int), cudaMemcpyHostToDevice);
+	delete tmp;
+
+	/*
 	mlg_set_index_kernel<Dtype><<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(N, data);
 	CUDA_POST_KERNEL_CHECK;
 
@@ -76,15 +83,22 @@ void MLGRNG<Dtype>::mlg_gpu_permutation(const int N, int* data){
 
 	mlg_gpu_range(N, 0, N-1, range);
 
-	for(int i = 0; i < N; i++){
-		int swapID = range[i];
+	int* local2 = new int[N];
+	cudaMemcpy(local2, range, N * sizeof(int), cudaMemcpyDeviceToHost);
 
-		int tmp = data[swapID];
-		data[swapID] = data[i];
-		data[i] = tmp;
+	int* tmp;
+	cudaMalloc((void**) &tmp,  sizeof(int));
+	for(int i = 0; i < N; i++){
+		cudaMemcpy(tmp, data + i, 1 * sizeof(int), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(data + i, data + (range[i]), 1 * sizeof(int), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(data + (range[i]), tmp, 1 * sizeof(int), cudaMemcpyDeviceToDevice);
 	}
 
+	int* local1 = new int[N];
+	cudaMemcpy(local1, data, N * sizeof(int), cudaMemcpyDeviceToHost);
+
 	cudaFree(range);
+	*/
 }
 
 template <typename Dtype>

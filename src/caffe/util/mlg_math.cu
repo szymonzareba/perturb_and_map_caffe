@@ -66,4 +66,50 @@ __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* b
 	}
 }
 
+
+
+
+
+
+template
+__global__ void replicate_kernel<float>(const int xcount, const int repxcount, const float* x, float* repx);
+
+template
+__global__ void replicate_kernel<double>(const int xcount, const int repxcount, const double* x, double* repx);
+
+template
+__global__ void sample_ge0_kernel<float>(const int n, float* y);
+
+template
+__global__ void sample_ge0_kernel<double>(const int n, double* y);
+
+template
+__global__ void sample_ge0_5_kernel<float>(const int n, float* y);
+
+template
+__global__ void sample_ge0_5_kernel<double>(const int n, double* y);
+
+template
+__global__ void add_scaled_kernel<float>(const int n, const float alpha, const float* a, const float beta, const float* b, float* x);
+
+template
+__global__ void add_scaled_kernel<double>(const int n, const double alpha, const double* a, const double beta, const double* b, double* x);
+
+template
+__global__ void relax_0_1_kernel<float>(const int n, float* x);
+
+template
+__global__ void relax_0_1_kernel<double>(const int n, double* x);
+
+template
+__global__ void negate_kernel<float>(const int n, float* x);
+
+template
+__global__ void negate_kernel<double>(const int n, double* x);
+
+template
+__global__ void add_with_mask_kernel<float>(const int n, const float* a, const float* bMask, const float* b, float* x);
+
+template
+__global__ void add_with_mask_kernel<double>(const int n, const double* a, const double* bMask, const double* b, double* x);
 }

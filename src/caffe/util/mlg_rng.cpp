@@ -39,12 +39,40 @@ void MLGRNG<Dtype>::mlg_cpu_gumbel(const int N, Dtype* data){
 
 template <typename Dtype>
 void MLGRNG<Dtype>::mlg_cpu_permutation(const int N, int* data){
-	NOT_IMPLEMENTED;
+	for(int i = 0; i < N; i++){
+		data[i] = i;
+	}
+
+	int* order = new int[N];
+	mlg_cpu_range(N, 0, N-1, order);
+
+	for(int i = 0; i < N; i++){
+		int tmp = data[i];
+		data[i] = data[order[i]];
+		data[order[i]] = tmp;
+	}
+
+	delete order;
 }
 
 template <typename Dtype>
 void MLGRNG<Dtype>::mlg_cpu_range(const int N, const int min, const int max, int* data){
-	NOT_IMPLEMENTED;
+	Dtype* tmp = new Dtype[N];
+
+	caffe_rng_uniform<Dtype>(N, Dtype(0.), Dtype(1.), tmp);
+/*
+	Dtype* device;
+	cudaMalloc((void**) &device, N * sizeof(Dtype));
+	mlg_gpu_uniform(N, device);
+	cudaMemcpy(tmp, device, N * sizeof(Dtype), cudaMemcpyDeviceToHost);
+	cudaFree(device);
+*/
+
+	for(int i = 0; i < N; i++){
+		data[i] = (((int)(tmp[i] * 100000)) % (max - min + 1) ) + min;
+	}
+
+	delete tmp;
 }
 
 template MLGRNG<float>::MLGRNG();
