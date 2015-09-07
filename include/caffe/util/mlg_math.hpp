@@ -34,6 +34,8 @@ __global__ void negate_kernel(const int n, Dtype* x);
 template <typename Dtype>
 __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* bMask, const Dtype* b, Dtype* x);
 
+template <typename Dtype>
+__global__ void binarization_kernel(const int count, const Dtype threshold, const Dtype* x, Dtype* y);
 }  // namespace caffe
 
 #endif  // MLG_UTIL_MATH__H_

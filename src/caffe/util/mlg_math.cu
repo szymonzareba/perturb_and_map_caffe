@@ -4,6 +4,17 @@
 namespace caffe {
 
 template <typename Dtype>
+__global__ void binarization_kernel(const int count, const Dtype threshold, const Dtype* x, Dtype* y) {
+  CUDA_KERNEL_LOOP(index, count) {
+   if(x[index] > threshold){
+	y[index] = (Dtype) 1.;
+   }else{
+	y[index] = (Dtype) 0.;
+   }
+  }
+}
+
+template <typename Dtype>
 __global__ void replicate_kernel(const int xcount, const int repxcount, const Dtype* x, Dtype* repx) {
   CUDA_KERNEL_LOOP(index, repxcount) {
    repx[index] = x[index % xcount];
@@ -70,6 +81,11 @@ __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* b
 
 
 
+template
+__global__ void binarization_kernel(const int count, const float threshold, const float* x, float* y);
+
+template
+__global__ void binarization_kernel(const int count, const double threshold, const double* x, double* y);
 
 template
 __global__ void replicate_kernel<float>(const int xcount, const int repxcount, const float* x, float* repx);
