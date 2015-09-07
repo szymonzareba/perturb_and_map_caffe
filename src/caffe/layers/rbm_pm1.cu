@@ -12,6 +12,7 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
       const vector<Blob<Dtype>*>& bottom){
 
 	const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
+	const Dtype pertStr = this->layer_param_.rbm_param().rbm_pm_param().pert_str();
 
 	Blob<Dtype> repX;
 	replicate_data_gpu(repTimes, bottom[0], &repX);
@@ -63,13 +64,13 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	ra.ReshapeLike(bTmp);
 	Dtype* bTmpMutable = bTmp.mutable_gpu_data();
 	MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
-
+	caffe_gpu_scal<Dtype>(ra.count(), pertStr, ra.mutable_gpu_data());
 	caffe_gpu_add(bTmp.count(), bTmpMutable, ra.gpu_data(), bTmpMutable);
 
 	ra.ReshapeLike(cTmp);
 	Dtype* cTmpMutable = cTmp.mutable_gpu_data();
 	MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
-
+	caffe_gpu_scal<Dtype>(ra.count(), pertStr, ra.mutable_gpu_data());
 	caffe_gpu_add(bTmp.count(), cTmpMutable, ra.gpu_data(), cTmpMutable);
 
 

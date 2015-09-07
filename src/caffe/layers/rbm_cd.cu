@@ -11,11 +11,6 @@ void RBMCDLayer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
 
-/*
-	LOG(INFO) << "bottom[0] shape : " << bottom[0]->shape()[0] << " " << bottom[0]->shape()[1] << std::endl;
-	LOG(INFO) << "top[0] shape : " << top[0]->shape()[0] << " " << top[0]->shape()[1] << std::endl;
-*/
-
 	Dtype scalar = -1. / this->M_;
 	const Dtype* X0S = bottom[0]->gpu_data();
 	const Dtype* H0S = top[0]->gpu_data();

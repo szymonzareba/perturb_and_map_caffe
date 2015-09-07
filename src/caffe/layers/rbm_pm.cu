@@ -17,6 +17,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			const int descentSteps = this->layer_param_.rbm_param().rbm_pm_param().coordinate_descent_param().descent_steps();
 			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
 
+			/*
 			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 					  this->M_ * repTimes, this->N_, this->K_,
 					  (Dtype)1., XS, W->gpu_data(),
@@ -26,6 +27,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 			sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), H->mutable_gpu_data());
 			CUDA_POST_KERNEL_CHECK;
+			*/
 
 			for(int descent = 0; descent < descentSteps; descent++){
 
@@ -96,6 +98,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 				relax_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 				CUDA_POST_KERNEL_CHECK;
 			}
+
 			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 			CUDA_POST_KERNEL_CHECK;
 
@@ -114,30 +117,6 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 		{}
 	}
 }
-
-template <typename Dtype>
-void RBMPMLayer<Dtype>::replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX){
-
-	const int axis = X->CanonicalAxisIndex(this->layer_param_.rbm_param().axis());
-
-	vector<int> X_shape = X->shape();
-
-    vector<int> repX_shape(2);
-    repX_shape[0] = X_shape[0] * N;
-    repX_shape[1] = X->count(axis);
-
-    repX->Reshape(repX_shape);
-
-    replicate_kernel<Dtype><<<CAFFE_GET_BLOCKS(repX->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), repX->count(), X->gpu_data(), repX->mutable_gpu_data());
-    CUDA_POST_KERNEL_CHECK;
-}
-
-
-template
-void RBMPMLayer<float>::replicate_data_gpu(const int N, Blob<float>* X, Blob<float>* repX);
-
-template
-void RBMPMLayer<double>::replicate_data_gpu(const int N, Blob<double>* X, Blob<double>* repX);
 
 template
 void RBMPMLayer<float>::find_map_gpu(Blob<float>* X, Blob<float>* H, Blob<float>* b, Blob<float>* c, Blob<float>* W);

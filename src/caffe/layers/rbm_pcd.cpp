@@ -7,6 +7,38 @@
 namespace caffe {
 
 template <typename Dtype>
+void RBMPCDLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {
+	RBMLayer<Dtype>::LayerSetUp(bottom,top);
+
+	if(this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains() > this->M_)
+	{
+		LOG(FATAL) << "gibbs chains > minibatch" << std::endl;
+	}
+
+	if(this->M_ % this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains() != 0)
+	{
+		LOG(FATAL) << "minibatch % gibbs chains != 0" << std::endl;
+	}
+
+	// tmp X1S for gibbs sampler
+	vector<int> X1SShape(2);
+	X1SShape[0] = this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains();
+	X1SShape[1] = this->K_;
+	X1Chain_.Reshape(X1SShape);
+	caffe_rng_uniform(X1Chain_.count(), Dtype(0.), Dtype(1.), X1Chain_.mutable_cpu_data());
+
+	// tmp H1S for gibbs sampler
+	vector<int> H1SShape(2);
+	H1SShape[0] = this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains();
+	H1SShape[1] = this->N_;
+	H1Chain_.Reshape(H1SShape);
+	caffe_rng_uniform(H1Chain_.count(), Dtype(0.), Dtype(1.), H1Chain_.mutable_cpu_data());
+}
+
+
+
+template <typename Dtype>
 void RBMPCDLayer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
       const vector<Blob<Dtype>*>& bottom){
@@ -15,59 +47,74 @@ void RBMPCDLayer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 	const Dtype* X0S = bottom[0]->cpu_data();
 	const Dtype* H0S = top[0]->cpu_data();
 
+	Dtype* X1Chain = this->X1Chain_.mutable_cpu_data();
+	Dtype* H1Chain = this->H1Chain_.mutable_cpu_data();
+
 	Dtype* X1S = this->X1S_.mutable_cpu_data();
 	Dtype* H1S = this->H1S_.mutable_cpu_data();
 
-	//caffe_copy(top[0]->count(), H0S, H1S);
+
+	int chainNum;
+	if(this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains() == -1)
+	{
+		chainNum = this->M_;
+	}
+	else
+	{
+		chainNum = this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains();
+	}
+
 
     for(int gibbsStep = 0; gibbsStep < this->layer_param_.rbm_param().rbm_pcd_param().gibbs_steps(); gibbsStep++){
 
     	// X1S = 1 * H1S * W + 0 * X1S
     	// [m,k] = 1 * [m,n] * [n,k] + 0 * [m,k]
-    	// OK
     	caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    			this->M_, this->K_, this->N_,
-    			(Dtype)1., H1S, this->blobs_[0]->cpu_data(),
-    			(Dtype)0., X1S);
+    			chainNum, this->K_, this->N_,
+    			(Dtype)1., H1Chain, this->blobs_[0]->cpu_data(),
+    			(Dtype)0., X1Chain);
 
     	// X1S = 1 * bm * b + 1 * X1S
     	// [m,k] = 1 * [m,1] * [1,k] + 1 * [m,k]
-    	// OK
     	caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-    			this->M_, this->K_, 1,
+    			chainNum, this->K_, 1,
     			(Dtype)1., this->ones_m_.cpu_data(), this->blobs_[1]->cpu_data(),
-    			(Dtype)1., X1S);
+    			(Dtype)1., X1Chain);
 
-    	for(int i = 0; i < this->X1S_.count(); i++){
-    		X1S[i] = sigmoid_cpu(X1S[i]);
+    	for(int i = 0; i < this->X1Chain_.count(); i++){
+    		X1Chain[i] = sigmoid_cpu(X1Chain[i]);
     	}
 
     	// sample
-    	sample_cpu(this->X1S_.count(), X1S);
+    	sample_cpu(this->X1Chain_.count(), X1Chain);
 
     	// H1S = 1 * X1S * W(T) + 0 * H1S
     	// [m,n] = 1 * [m,k] * [k,n] + 0 * [m,n]
     	// OK
     	caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-    			this->M_, this->N_, this->K_,
-    			(Dtype)1., X1S, this->blobs_[0]->cpu_data(),
-    			(Dtype)0., H1S);
+    			chainNum, this->N_, this->K_,
+    			(Dtype)1., X1Chain, this->blobs_[0]->cpu_data(),
+    			(Dtype)0., H1Chain);
 
     	// H1S = 1 * cm * c + 1 * H1S
     	// [m,n] = 1 * [m,1] * [1,n] + 1 * [m,n]
     	// OK
     	caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-    			this->M_, this->N_, 1,
+    			chainNum, this->N_, 1,
     			(Dtype)1., this->ones_m_.cpu_data(), this->blobs_[2]->cpu_data(),
-    			(Dtype)1., H1S);
+    			(Dtype)1., H1Chain);
 
-    	for(int i = 0; i < this->H1S_.count(); i++){
-    		H1S[i] = sigmoid_cpu(H1S[i]);
+    	for(int i = 0; i < this->H1Chain_.count(); i++){
+    		H1Chain[i] = sigmoid_cpu(H1Chain[i]);
     	}
 
     	// sample
-    	sample_cpu(this->H1S_.count(), H1S);
+    	sample_cpu(this->H1Chain_.count(), H1Chain);
     }
+
+    int repeats = this->M_ / chainNum;
+    replicate_data_cpu(repeats, &this->X1Chain_, &this->X1S_);
+    replicate_data_cpu(repeats, &this->H1Chain_, &this->H1S_);
 
 	if (this->param_propagate_down_[0]) {
 	// calculate gradient with respect to W : x0S'*H0S - x1S'*H1S / M

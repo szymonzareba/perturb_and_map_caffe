@@ -6,8 +6,26 @@
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/rbm_layers.hpp"
+#include "caffe/util/mlg_math.hpp"
 
 namespace caffe {
+
+template <typename Dtype>
+void RBMLayer<Dtype>::replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX){
+
+	const int axis = X->CanonicalAxisIndex(this->layer_param_.rbm_param().axis());
+
+	vector<int> X_shape = X->shape();
+
+    vector<int> repX_shape(2);
+    repX_shape[0] = X_shape[0] * N;
+    repX_shape[1] = X->count(axis);
+
+    repX->Reshape(repX_shape);
+
+    replicate_kernel<Dtype><<<CAFFE_GET_BLOCKS(repX->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), repX->count(), X->gpu_data(), repX->mutable_gpu_data());
+    CUDA_POST_KERNEL_CHECK;
+}
 
 template <typename Dtype>
 void RBMLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
@@ -253,5 +271,12 @@ template float RBMLayer<float>::ll_gpu( \
 template double RBMLayer<double>::ll_gpu( \
      const std::vector<Blob<double>*>& top, \
      const std::vector<Blob<double>*>& bottom);
+
+template
+void RBMLayer<float>::replicate_data_gpu(const int N, Blob<float>* X, Blob<float>* repX);
+
+template
+void RBMLayer<double>::replicate_data_gpu(const int N, Blob<double>* X, Blob<double>* repX);
+
 
 } // namespace caffe

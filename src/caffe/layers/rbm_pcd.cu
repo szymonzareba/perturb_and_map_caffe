@@ -15,50 +15,64 @@ void RBMPCDLayer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	const Dtype* X0S = bottom[0]->gpu_data();
 	const Dtype* H0S = top[0]->gpu_data();
 
-	//caffe_copy(top[0]->count(), top[0]->gpu_data(), this->H1S_.mutable_gpu_data());
+	Dtype* X1Chain = this->X1Chain_.mutable_gpu_data();
+	Dtype* H1Chain = this->H1Chain_.mutable_gpu_data();
+
+	Dtype* X1S = this->X1S_.mutable_gpu_data();
+	Dtype* H1S = this->H1S_.mutable_gpu_data();
+
+
+	int chainNum;
+	if(this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains() == -1)
+	{
+		chainNum = this->M_;
+	}
+	else
+	{
+		chainNum = this->layer_param_.rbm_param().rbm_pcd_param().gibbs_chains();
+	}
 
     for(int gibbsStep = 0; gibbsStep < this->layer_param_.rbm_param().rbm_pcd_param().gibbs_steps(); gibbsStep++){
 
     	// X1S = 1 * H1S * W + 0 * X1S
     	// [m,k] = 1 * [m,n] * [n,k] + 0 * [m,k]
-    	// OK
     	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    			this->M_, this->K_, this->N_,
-    			(Dtype)1., this->H1S_.gpu_data(), this->blobs_[0]->gpu_data(),
-    			(Dtype)0., this->X1S_.mutable_gpu_data());
+    			chainNum, this->K_, this->N_,
+    			(Dtype)1., H1Chain, this->blobs_[0]->gpu_data(),
+    			(Dtype)0., X1Chain);
 
     	// X1S = 1 * bm * b + 1 * X1S
     	// [m,k] = 1 * [m,1] * [1,k] + 1 * [m,k]
-    	// OK
     	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-    			this->M_, this->K_, 1,
+    			chainNum, this->K_, 1,
     			(Dtype)1., this->ones_m_.gpu_data(), this->blobs_[1]->gpu_data(),
-    			(Dtype)1., this->X1S_.mutable_gpu_data());
+    			(Dtype)1., X1Chain);
 
 
-    	sigmoid_gpu(this->X1S_.count(), this->X1S_.mutable_gpu_data());
-    	sample_gpu(this->X1S_.count(), this->X1S_.mutable_gpu_data());
+    	sigmoid_gpu(this->X1Chain_.count(), X1Chain);
+    	sample_gpu(this->X1Chain_.count(), X1Chain);
 
     	// H1S = 1 * X1S * W(T) + 0 * H1S
     	// [m,n] = 1 * [m,k] * [k,n] + 0 * [m,n]
-    	// OK
     	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-    			this->M_, this->N_, this->K_,
-    			(Dtype)1., this->X1S_.gpu_data(), this->blobs_[0]->gpu_data(),
-    			(Dtype)0., this->H1S_.mutable_gpu_data());
+    			chainNum, this->N_, this->K_,
+    			(Dtype)1., X1Chain, this->blobs_[0]->gpu_data(),
+    			(Dtype)0., H1Chain);
 
     	// H1S = 1 * cm(T) * c + 1 * H1S
     	// [m,n] = 1 * [m,1] * [1,n] + 1 * [m,n]
-    	// OK
     	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-    			this->M_, this->N_, 1,
+    			chainNum, this->N_, 1,
     			(Dtype)1., this->ones_m_.gpu_data(), this->blobs_[2]->gpu_data(),
-    			(Dtype)1., this->H1S_.mutable_gpu_data());
+    			(Dtype)1., H1Chain);
 
-    	sigmoid_gpu(this->H1S_.count(), this->H1S_.mutable_gpu_data());
-    	sample_gpu(this->H1S_.count(), this->H1S_.mutable_gpu_data());
+    	sigmoid_gpu(this->H1Chain_.count(), H1Chain);
+    	sample_gpu(this->H1Chain_.count(), H1Chain);
     }
 
+    int repeats = this->M_ / chainNum;
+    replicate_data_gpu(repeats, &this->X1Chain_, &this->X1S_);
+    replicate_data_gpu(repeats, &this->H1Chain_, &this->H1S_);
 
 	if (this->param_propagate_down_[0]) {
 	// calculate gradient with respect to W : x0S'*H0S - x1S'*H1S / M

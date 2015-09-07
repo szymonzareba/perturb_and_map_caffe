@@ -79,10 +79,7 @@ void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 	}
 }
 
-template <typename Dtype>
-void RBMPMLayer<Dtype>::replicate_data_cpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX){
-	NOT_IMPLEMENTED;
-}
+
 
 #ifdef CPU_ONLY
 STUB_GPU(RBMPMLayer);

@@ -277,6 +277,7 @@ class FileFiller : public Filler<Dtype> {
     io::stream<io::mapped_file_source> str(this->filler_param_.path());
     for(int i = 0; i < blob->count(); i++ )
     {
+    	//LOG(INFO) << i;
     	str >> data[i];
     	if(str.eof())
     	{

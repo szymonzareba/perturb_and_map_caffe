@@ -23,11 +23,9 @@ void RBMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   K_ = bottom[0]->count(axis);
   M_ = bottom[0]->count(0, axis);
 
-/*
   LOG(INFO) << "k : " << K_ << std::endl;
   LOG(INFO) << "m : " << M_ << std::endl;
   LOG(INFO) << "n : " << N_ << std::endl;
-*/
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
     LOG(INFO) << "Skipping parameter initialization";
@@ -61,21 +59,6 @@ void RBMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     		this->layer_param_.rbm_param().c_filler()));
     bias_c_filler->Fill(this->blobs_[2].get());
 
-    // custom param init
-/*
-    for(int i = 0; i < this->blobs_[0]->count(); i++){
-    	this->blobs_[0]->mutable_cpu_data()[i] = 0.001 * (i-4);
-    }
-
-    for(int i = 0; i < this->blobs_[1]->count(); i++){
-    	this->blobs_[1]->mutable_cpu_data()[i] = 0.001 * (i-4);
-    }
-
-    for(int i = 0; i < this->blobs_[2]->count(); i++){
-    	this->blobs_[2]->mutable_cpu_data()[i] = 0.001 * (i-2);
-    }
-*/
-    // custom param init end
 
     // tmp X1S for gibbs sampler
     vector<int> X1SShape(2);
@@ -334,6 +317,10 @@ void RBMLayer<Dtype>::sample_cpu(int N, Dtype* mat)
     }
 }
 
+template <typename Dtype>
+void RBMLayer<Dtype>::replicate_data_cpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX){
+	NOT_IMPLEMENTED;
+}
 
 #ifdef CPU_ONLY
 STUB_GPU(RBMLayer);

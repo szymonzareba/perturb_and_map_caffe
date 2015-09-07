@@ -10,7 +10,6 @@
 
 namespace caffe {
 
-
 /**
  * @brief RBM layer for Forward and Backward calculation
  */
@@ -52,6 +51,8 @@ class RBMLayer : public Layer<Dtype> {
   virtual void sample_gpu(int N, Dtype* mat);
   virtual inline Dtype sigmoid_cpu(Dtype x){ return 1. / (1. + exp(-x)); }
   virtual void sigmoid_gpu(int count, Dtype* data);
+  virtual void replicate_data_cpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
+  virtual void replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
 
   // minibatch size
   int M_;
@@ -63,7 +64,6 @@ class RBMLayer : public Layer<Dtype> {
   Blob<Dtype> ones_m_;
 
   // tmp values for gibbs sampler
-  // use this for PersistentCD (!)
   Blob<Dtype> X1S_;
   Blob<Dtype> H1S_;
 
@@ -71,9 +71,6 @@ class RBMLayer : public Layer<Dtype> {
   #ifndef CPU_ONLY
   Blob<Dtype> randomContainer;
   #endif
-
-
-
 };
 
 /**
@@ -103,13 +100,16 @@ class RBMPCDLayer : public RBMLayer<Dtype> {
  public:
   explicit RBMPCDLayer(const LayerParameter& param)
       : RBMLayer<Dtype>(param) {}
-  virtual inline const char* type() const { return "RBM CD"; }
-
+  virtual inline const char* type() const { return "RBM PCD"; }
+  void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+        const vector<Blob<Dtype>*>& top);
  protected:
   virtual void gradient_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void gradient_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  Blob<Dtype> X1Chain_;
+  Blob<Dtype> H1Chain_;
 };
 
 /**
@@ -127,8 +127,6 @@ class RBMPMLayer : public RBMLayer<Dtype> {
  protected:
   virtual void find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
   virtual void find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
-  virtual void replicate_data_cpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
-  virtual void replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
 };
 
 /**

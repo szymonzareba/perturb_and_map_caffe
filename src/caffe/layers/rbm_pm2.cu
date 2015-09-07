@@ -69,7 +69,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
       const vector<Blob<Dtype>*>& bottom){
 
 	const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
-
+	const Dtype pertStr = this->layer_param_.rbm_param().rbm_pm_param().pert_str();
 
 
 	// replicate data
@@ -213,6 +213,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	// perturb W
 	ra.ReshapeLike(wTmp);
 	MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
+	caffe_gpu_scal<Dtype>(ra.count(), pertStr, ra.mutable_gpu_data());
 	add_with_mask_kernel<Dtype><<<CAFFE_GET_BLOCKS(wTmp.count()), CAFFE_CUDA_NUM_THREADS>>>(
 			wTmp.count(),
 			wTmp.mutable_gpu_data(),
@@ -225,6 +226,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	// perturb b
 	ra.ReshapeLike(bTmp);
 	MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
+	caffe_gpu_scal<Dtype>(ra.count(), pertStr, ra.mutable_gpu_data());
 	add_with_mask_kernel<Dtype><<<CAFFE_GET_BLOCKS(bTmp.count()), CAFFE_CUDA_NUM_THREADS>>>(
 			bTmp.count(),
 			bTmp.mutable_gpu_data(),
@@ -237,6 +239,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	// perturb c
 	ra.ReshapeLike(cTmp);
 	MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
+	caffe_gpu_scal<Dtype>(ra.count(), pertStr, ra.mutable_gpu_data());
 	add_with_mask_kernel<Dtype><<<CAFFE_GET_BLOCKS(cTmp.count()), CAFFE_CUDA_NUM_THREADS>>>(
 			cTmp.count(),
 			cTmp.mutable_gpu_data(),

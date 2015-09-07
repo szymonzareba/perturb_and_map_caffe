@@ -355,12 +355,18 @@ message LayerParameter {
   optional WindowDataParameter window_data_param = 129;
   optional RBMParameter rbm_param = 301;
   optional RBMReturnParameter rbm_return_param = 302;
+  optional BinarizationParameter bin_param = 303;
 }
 
 
 ////////////////////////
 ///// MLG Protobuf /////
 ////////////////////////
+
+message BinarizationParameter {
+  optional bool work = 1 [default = false];
+  optional float threshold = 2 [default = 0.5];
+}
 
 message RBMReturnParameter {
 
@@ -399,7 +405,8 @@ message RBMCDParameter {
 }
 
 message RBMPCDParameter {
-  optional uint32 gibbs_steps = 1 [default = 1];
+  optional int32 gibbs_steps = 1 [default = 1];
+  optional int32 gibbs_chains = 2 [default = -1];
 }
 
 enum MAPMethod {
@@ -410,6 +417,7 @@ enum MAPMethod {
 message RBMPMParameter {
 	optional MAPMethod map_method = 1 [default = CoordinateDescent];
 	optional uint32 batch_repeats = 2 [default = 1];
+	optional float pert_str = 7 [default = 1];
 	
 	// map parameters
 	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
