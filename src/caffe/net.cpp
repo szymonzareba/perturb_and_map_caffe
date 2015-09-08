@@ -853,10 +853,7 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
     CHECK_EQ(target_blobs.size(), source_layer.blobs_size())
         << "Incompatible number of blobs for layer " << source_layer_name;
     for (int j = 0; j < target_blobs.size(); ++j) {
-<<<<<<< HEAD
-      //const bool kReshape = false;
-      const bool kReshape = true;
-=======
+
       if (!target_blobs[j]->ShapeEquals(source_layer.blobs(j))) {
         Blob<Dtype> source_blob;
         const bool kReshape = true;
@@ -868,8 +865,7 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
             << "To learn this layer's parameters from scratch rather than "
             << "copying from a saved net, rename the layer.";
       }
-      const bool kReshape = false;
->>>>>>> master
+      const bool kReshape = true;
       target_blobs[j]->FromProto(source_layer.blobs(j), kReshape);
     }
   }

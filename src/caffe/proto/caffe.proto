@@ -301,13 +301,8 @@ message ParamSpec {
 
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
-//
-<<<<<<< HEAD
 // LayerParameter next available layer-specific ID: 137 (last added: reduction_param)
 // MLG - start with 3. ID: 303 (last added: RBMReturnParameter)
-=======
-// LayerParameter next available layer-specific ID: 139 (last added: tile_param)
->>>>>>> master
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
