@@ -60,8 +60,8 @@ layer {
   bottom: "inner1_hidden1"
   top: "hidden1_inner2"
   bunch_param {
-    bunch_a: 5.6#6.65#3.8#
-    bunch_b: 9.3#15.15#3.45#
+    bunch_a: 8#3.8#5.6#6.65#
+    bunch_b: 29#3.45#9.3#15.15#
   }
 }
 
@@ -91,8 +91,8 @@ layer {
   bottom: "inner2_hidden2"
   top: "hidden2_inner3"
   bunch_param {
-    bunch_a: 3.8#5.6#6.65#
-    bunch_b: 3.45#9.3#15.15#
+    bunch_a: 8#3.8#5.6#6.65#
+    bunch_b: 29#3.45#9.3#15.15#
   }
 }
 
