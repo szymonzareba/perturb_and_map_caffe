@@ -182,7 +182,7 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
     for (int param_id = 0; param_id < num_param_blobs; ++param_id) {
       const ParamSpec* param_spec = (param_id < param_size) ?
           &layer_param.param(param_id) : &default_param_spec;
-      const bool param_need_backward = param_spec->lr_mult() > 0;
+      const bool param_need_backward = param_spec->lr_mult() != 0;
       need_backward |= param_need_backward;
       layers_[layer_id]->set_param_propagate_down(param_id,
                                                   param_need_backward);
@@ -810,12 +810,11 @@ void Net<Dtype>::Backward() {
   BackwardFromTo(layers_.size() - 1, 0);
   if (debug_info_) {
     Dtype asum_data = 0, asum_diff = 0, sumsq_data = 0, sumsq_diff = 0;
-    for (int i = 0; i < params_.size(); ++i) {
-      if (param_owners_[i] >= 0) { continue; }
-      asum_data += params_[i]->asum_data();
-      asum_diff += params_[i]->asum_diff();
-      sumsq_data += params_[i]->sumsq_data();
-      sumsq_diff += params_[i]->sumsq_diff();
+    for (int i = 0; i < learnable_params_.size(); ++i) {
+      asum_data += learnable_params_[i]->asum_data();
+      asum_diff += learnable_params_[i]->asum_diff();
+      sumsq_data += learnable_params_[i]->sumsq_data();
+      sumsq_diff += learnable_params_[i]->sumsq_diff();
     }
     const Dtype l2norm_data = std::sqrt(sumsq_data);
     const Dtype l2norm_diff = std::sqrt(sumsq_diff);
@@ -853,7 +852,6 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
     CHECK_EQ(target_blobs.size(), source_layer.blobs_size())
         << "Incompatible number of blobs for layer " << source_layer_name;
     for (int j = 0; j < target_blobs.size(); ++j) {
-
       if (!target_blobs[j]->ShapeEquals(source_layer.blobs(j))) {
         Blob<Dtype> source_blob;
         const bool kReshape = true;
@@ -865,7 +863,7 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
             << "To learn this layer's parameters from scratch rather than "
             << "copying from a saved net, rename the layer.";
       }
-      const bool kReshape = true;
+      const bool kReshape = false;
       target_blobs[j]->FromProto(source_layer.blobs(j), kReshape);
     }
   }
