@@ -11,7 +11,7 @@ layer {
   }
   data_param {
     source: "examples/rbm_pm1/mnist_train_lmdb"
-    batch_size: 10
+    batch_size: 100
     backend: LMDB
   }
 }
@@ -21,22 +21,33 @@ layer {
   top: "data"
   include {
     phase: TEST
-    stage: "test-on-test"
   }
   transform_param {
     scale: 0.0039215684
   }
   data_param {
     source: "examples/rbm_pm1/mnist_test_lmdb"
-    batch_size: 10
+    batch_size: 100
     backend: LMDB
+  }
+}
+
+layer {
+  name: "bin1"
+  type: "Binarization"
+  bottom: "data"
+  top: "bin"
+  
+  bin_param{
+  	work: true
+  	threshold: 0.5
   }
 }
 
 layer {
   name: "rbm1"
   type: "RBMPM1"
-  bottom: "data"
+  bottom: "bin"
   top : "rbm1HOut"
   top : "rbm1HIn"  
   top : "rbm1loss"
@@ -59,7 +70,7 @@ layer {
   }
   
   rbm_param{
-    num_hidden: 500
+    num_hidden: 20
     llAprox: REC
     w_filler {
       type: "gaussian"
@@ -77,15 +88,15 @@ layer {
       std: 0.05
     }
     rbm_pm_param {
-      map_method : FreeEnergyGradientDescent
+      map_method : NegativeGreedyEnergyOptimization
       batch_repeats : 10
-      coordinate_descent_param {
-       descent_steps : 10
+      geo_param {
+       steps : 10
       }
       fegd_param {
        descent_steps : 50
-       eta_0 : 0.1
-       eta_decay : 0       
+       eta_0 : 1
+       eta_decay : 0.1   
       }      
     }        
   }

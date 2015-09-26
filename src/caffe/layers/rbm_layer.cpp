@@ -61,18 +61,23 @@ void RBMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
 
     // tmp X1S for gibbs sampler
-    vector<int> X1SShape(2);
-    X1SShape[0] = M_;
-    X1SShape[1] = K_;
-    X1S_.Reshape(X1SShape);
-    caffe_rng_uniform(X1S_.count(), Dtype(0.), Dtype(1.), X1S_.mutable_cpu_data());
+    vector<int> XShape(2);
+    XShape[0] = M_;
+    XShape[1] = K_;
+
+    X1S.Reshape(XShape);
+    caffe_rng_uniform(X1S.count(), Dtype(0.), Dtype(1.), X1S.mutable_cpu_data());
 
     // tmp H1S for gibbs sampler
-    vector<int> H1SShape(2);
-    H1SShape[0] = M_;
-    H1SShape[1] = N_;
-    H1S_.Reshape(H1SShape);
-    caffe_rng_uniform(H1S_.count(), Dtype(0.), Dtype(1.), H1S_.mutable_cpu_data());
+    vector<int> HShape(2);
+    HShape[0] = M_;
+    HShape[1] = N_;
+
+    H0.Reshape(HShape);
+    caffe_rng_uniform(H0.count(), Dtype(0.), Dtype(1.), H0.mutable_cpu_data());
+
+    H1S.Reshape(HShape);
+    caffe_rng_uniform(H1S.count(), Dtype(0.), Dtype(1.), H1S.mutable_cpu_data());
 
   }  // parameter initialization
 
@@ -128,27 +133,22 @@ void RBMLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void RBMLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
-  const Dtype* X0S = bottom[0]->cpu_data();
-  Dtype* H0S = top[0]->mutable_cpu_data();
-  const Dtype* W = this->blobs_[0]->cpu_data();
-  const Dtype* c = this->blobs_[2]->cpu_data();
 
-/*
-  LOG(INFO) << "FORWARD : " <<
-		  	   " bottoms:" << bottom.size() <<
-		       " X0S:" << bottom[0]->count() <<
-		       //" X1S:" << bottom[1]->count() <<
-		       " H0S:" << top[0]->count() <<
-		       " H1S:" << top[1]->count() << std::endl;
-*/
+  const Dtype* X0SData = bottom[0]->cpu_data();
+  Dtype* H0Data = this->H0.mutable_cpu_data();
+  Dtype* H0SData = top[0]->mutable_cpu_data();
+
+  const Dtype* W = this->blobs_[0]->cpu_data();
+  const Dtype* b = this->blobs_[1]->cpu_data();
+  const Dtype* c = this->blobs_[2]->cpu_data();
 
   // H  = 1 * X * W(T) + 0 * H
   // top_data = 1 * bottom_data * weight(T) + 0 * top_data
   // [m,n] = 1 * [m,k] * [k,n] + 0 * [m,n]
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 		  M_, N_, K_,
-		  (Dtype)1., X0S, W,
-		  (Dtype)0., H0S);
+		  (Dtype)1., X0SData, W,
+		  (Dtype)0., H0Data);
 
   // H = 1 * cM * C + 1 * H
   // top_data = 1 * bias_c_multiplier * c + 1 * top_data
@@ -156,13 +156,13 @@ void RBMLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 		  M_, N_, 1,
 		  (Dtype)1., ones_m_.cpu_data(), c,
-		  (Dtype)1., H0S);
+		  (Dtype)1., H0Data);
 
   for(int i = 0; i < top[0]->count(); i++){
-	  H0S[i] = sigmoid_cpu(H0S[i]);
+	  H0Data[i] = sigmoid_cpu(H0Data[i]);
   }
 
-  sample_cpu(top[0]->count(), H0S);
+  sample_cpu(top[0]->count(), H0Data, H0SData);
 
   top[2]->mutable_cpu_data()[0] = ll_cpu(top, bottom);
 }
@@ -178,18 +178,21 @@ void RBMLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   if(bottom.size() == 2) // layer has second input for reconstruction
   {
 	  // calculate layer backward output
-	  const Dtype* H1S = top[1]->cpu_data();
+	  const Dtype* H1SData = top[1]->cpu_data();
+	  Dtype* X1SData = bottom[1]->mutable_cpu_data();
+
 	  const Dtype* W = this->blobs_[0]->cpu_data();
 	  const Dtype* b = this->blobs_[1]->cpu_data();
-	  Dtype* X1S = bottom[1]->mutable_cpu_data();
+	  const Dtype* c = this->blobs_[2]->cpu_data();
+
 	  // X = 1 * H * W + 0 * X
 	  // bottom_data = 1 * top_data * weights + 0 * bottom_data
 	  // [m,k] = 1 * [m,n] * [n,k] + 0 * [m,k]
 	  // OK
 	  caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
 			  M_, K_, N_,
-	  		  (Dtype)1., H1S, W,
-	  		  (Dtype)0., X1S);
+	  		  (Dtype)1., H1SData, W,
+	  		  (Dtype)0., X1SData);
 
 
 	  // X = 1 * bM * b + 1 * X
@@ -198,14 +201,14 @@ void RBMLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 	  caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 	  		  M_, K_, 1,
 	  		  (Dtype)1., ones_m_.cpu_data(), b,
-	  		  (Dtype)1., X1S);
+	  		  (Dtype)1., X1SData);
 
 	  for(int i = 0; i < bottom[0]->count(); i++){
-		  X1S[i] = sigmoid_cpu(X1S[i]);
+		  X1SData[i] = sigmoid_cpu(X1SData[i]);
 	  }
 
 	  // sample binary x
-	  sample_cpu(bottom[0]->count(), X1S);
+	  sample_cpu(bottom[0]->count(), X1SData);
   }
 
 }
@@ -253,7 +256,7 @@ Dtype RBMLayer<Dtype>::ll_cpu(const vector<Blob<Dtype>*>& top, const vector<Blob
 		case RBMLayer::REC:
 		{
 			Blob<Dtype> xTmp;
-			xTmp.ReshapeLike(this->X1S_);
+			xTmp.ReshapeLike(this->X1S);
 
 			const Dtype* xData = bottom[0]->cpu_data();
 			const Dtype* hData = top[0]->cpu_data();
@@ -315,6 +318,31 @@ void RBMLayer<Dtype>::sample_cpu(int N, Dtype* mat)
     		mat[i] = 0;
     	}
     }
+}
+
+template <typename Dtype>
+void RBMLayer<Dtype>::sample_cpu(int N, const Dtype* src, Dtype* dst)
+{
+    vector<int> shape(1, N);
+    Blob<Dtype> randoms(shape);
+
+	MLGRNG<Dtype>::getInstance().mlg_cpu_uniform(randoms.count(), randoms.mutable_cpu_data());
+
+    const Dtype* rand_data = randoms.cpu_data();
+
+    for (int i = 0; i < N; ++i) {
+    	if(src[i] < rand_data[i]) {
+    		dst[i] = 1;
+    	}
+    	else {
+    		dst[i] = 0;
+    	}
+    }
+}
+
+template <typename Dtype>
+void RBMLayer<Dtype>::replicate_data_cpu(const int N, const int R, const Dtype* X, Dtype* repX){
+	NOT_IMPLEMENTED;
 }
 
 template <typename Dtype>

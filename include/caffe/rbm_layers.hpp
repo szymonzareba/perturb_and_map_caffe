@@ -7,6 +7,7 @@
 #endif
 
 #include "caffe/util/mlg_rng.hpp"
+#include "caffe/util/mlg_assert.hpp"
 
 namespace caffe {
 
@@ -48,12 +49,16 @@ class RBMLayer : public Layer<Dtype> {
   virtual Dtype ll_gpu(const vector<Blob<Dtype>*>& top,
 		  const vector<Blob<Dtype>*>& bottom);
   virtual void sample_cpu(int N, Dtype* mat);
+  virtual void sample_cpu(int N, const Dtype* src, Dtype* dst);
   virtual void sample_gpu(int N, Dtype* mat);
+  virtual void sample_gpu(int N, const Dtype* src, Dtype* dst);
   virtual inline Dtype sigmoid_cpu(Dtype x){ return 1. / (1. + exp(-x)); }
   virtual void sigmoid_gpu(int count, Dtype* data);
+  virtual void replicate_data_cpu(const int N, const int R, const Dtype* src, Dtype* dst);
+  virtual void replicate_data_gpu(const int N, const int R, const Dtype* src, Dtype* dst);
   virtual void replicate_data_cpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
   virtual void replicate_data_gpu(const int N, Blob<Dtype>* X, Blob<Dtype>* repX);
-
+  
   // minibatch size
   int M_;
   // input dimention
@@ -64,9 +69,9 @@ class RBMLayer : public Layer<Dtype> {
   Blob<Dtype> ones_m_;
 
   // tmp values for gibbs sampler
-  Blob<Dtype> X1S_;
-  Blob<Dtype> H1S_;
-
+  Blob<Dtype> H0;
+  Blob<Dtype> X1S;
+  Blob<Dtype> H1S;
 
   #ifndef CPU_ONLY
   Blob<Dtype> randomContainer;
@@ -108,8 +113,9 @@ class RBMPCDLayer : public RBMLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void gradient_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  Blob<Dtype> X1Chain_;
-  Blob<Dtype> H1Chain_;
+
+  Blob<Dtype> X1Chain;
+  Blob<Dtype> H1Chain;
 };
 
 /**
@@ -122,11 +128,17 @@ class RBMPMLayer : public RBMLayer<Dtype> {
   explicit RBMPMLayer(const LayerParameter& param)
       : RBMLayer<Dtype>(param) {}
   virtual inline const char* type() const { return "RBM PM"; }
-  enum { CoordinateDescent, FreeEnergyGradientDescent };
+  enum {
+	  CoordinateDescent,
+	  FreeEnergyGradientDescent,
+	  GreedyEnergyOptimization ,
+	  NegativeFreeEnergyGradientDescent,
+	  NegativeGreedyEnergyOptimization };
 
  protected:
   virtual void find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
   virtual void find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
+
 };
 
 /**

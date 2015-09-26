@@ -5,7 +5,7 @@ caffe.set_device(0);
 clear all
 close all
 interval = 500;
-ex = 'rbm_pm1';
+ex = 'rbm_pm2';
 %ex = 'rbm_cd';
 
 try

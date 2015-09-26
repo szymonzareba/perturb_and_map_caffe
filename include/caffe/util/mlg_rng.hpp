@@ -13,6 +13,9 @@
 #include <curand_kernel.h>
 #endif
 
+#define MLG_MIN_UNI (Dtype)(0.0000001)
+#define MLG_MAX_UNI (Dtype)(1.-MLG_MIN_UNI)
+
 namespace caffe {
 
 template <typename Dtype>

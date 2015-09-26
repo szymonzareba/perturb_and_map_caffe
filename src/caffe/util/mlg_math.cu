@@ -33,6 +33,17 @@ __global__ void sample_ge0_kernel(const int n, Dtype* y) {
 }
 
 template <typename Dtype>
+__global__ void sample_ge0_kernel(const int n, const Dtype* src, Dtype* dst) {
+  CUDA_KERNEL_LOOP(index, n) {
+	if(src[index] > (Dtype)0.){
+		dst[index] = (Dtype) 1.;
+	}else{
+		dst[index] = (Dtype) 0.;
+	}
+  }
+}
+
+template <typename Dtype>
 __global__ void sample_ge0_5_kernel(const int n, Dtype* y) {
   CUDA_KERNEL_LOOP(index, n) {
 	if(y[index] > (Dtype)0.5){
@@ -53,20 +64,20 @@ __global__ void add_scaled_kernel(const int n, const Dtype alpha, const Dtype* a
 template <typename Dtype>
 __global__ void relax_0_1_kernel(const int n, Dtype* x) {
   CUDA_KERNEL_LOOP(index, n) {
-	if(x[index] > 1){
-		x[index] = 1;
+	if(x[index] > (Dtype)1.){
+		x[index] = (Dtype)1.;
 	}
 
-	if(x[index] < 0){
-		x[index] = 0;
+	if(x[index] < (Dtype)0.){
+		x[index] = (Dtype)0.;
 	}
   }
 }
 
 template <typename Dtype>
-__global__ void negate_kernel(const int n, Dtype* x){
+__global__ void negate_0_1_kernel(const int n, Dtype* x){
 	CUDA_KERNEL_LOOP(index, n){
-		x[index] = 1 - x[index];
+		x[index] = (Dtype)1. - x[index];
 	}
 }
 
@@ -77,9 +88,41 @@ __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* b
 	}
 }
 
+template <typename Dtype>
+__global__ void negate_g_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x){
+	CUDA_KERNEL_LOOP(index, n){
+		if(mask[index] > threshold){
+			x[index] = - x[index];
+		}
+	}
+}
 
+template <typename Dtype>
+__global__ void negate_l_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x){
+	CUDA_KERNEL_LOOP(index, n){
+		if(mask[index] < threshold){
+			x[index] = - x[index];
+		}
+	}
+}
 
+template <typename Dtype>
+__global__ void negate_0_1_g_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x){
+	CUDA_KERNEL_LOOP(index, n){
+		if(mask[index] > threshold){
+			x[index] = (Dtype)1. - x[index];
+		}
+	}
+}
 
+template <typename Dtype>
+__global__ void negate_0_1_l_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x){
+	CUDA_KERNEL_LOOP(index, n){
+		if(mask[index] < threshold){
+			x[index] = (Dtype)1. - x[index];
+		}
+	}
+}
 
 template
 __global__ void binarization_kernel(const int count, const float threshold, const float* x, float* y);
@@ -100,6 +143,12 @@ template
 __global__ void sample_ge0_kernel<double>(const int n, double* y);
 
 template
+__global__ void sample_ge0_kernel<float>(const int n, const float* src, float* dst);
+
+template
+__global__ void sample_ge0_kernel<double>(const int n, const double* src, double* dst);
+
+template
 __global__ void sample_ge0_5_kernel<float>(const int n, float* y);
 
 template
@@ -118,10 +167,34 @@ template
 __global__ void relax_0_1_kernel<double>(const int n, double* x);
 
 template
-__global__ void negate_kernel<float>(const int n, float* x);
+__global__ void negate_0_1_kernel<float>(const int n, float* x);
 
 template
-__global__ void negate_kernel<double>(const int n, double* x);
+__global__ void negate_0_1_kernel<double>(const int n, double* x);
+
+template
+__global__ void negate_g_kernel<float>(const int n, const float threshold, const float* mask, float* x);
+
+template
+__global__ void negate_g_kernel<double>(const int n, const double threshold, const double* mask, double* x);
+
+template
+__global__ void negate_l_kernel<float>(const int n, const float threshold, const float* mask, float* x);
+
+template
+__global__ void negate_l_kernel<double>(const int n, const double threshold, const double* mask, double* x);
+
+template
+__global__ void negate_0_1_g_kernel<float>(const int n, const float threshold, const float* mask, float* x);
+
+template
+__global__ void negate_0_1_g_kernel<double>(const int n, const double threshold, const double* mask, double* x);
+
+template
+__global__ void negate_0_1_l_kernel<float>(const int n, const float threshold, const float* mask, float* x);
+
+template
+__global__ void negate_0_1_l_kernel<double>(const int n, const double threshold, const double* mask, double* x);
 
 template
 __global__ void add_with_mask_kernel<float>(const int n, const float* a, const float* bMask, const float* b, float* x);

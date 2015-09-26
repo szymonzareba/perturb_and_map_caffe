@@ -24,7 +24,7 @@ __global__ void mlg_uniform_kernel(curandState_t* states, int n, Dtype* numbers)
 template <typename Dtype>
 __global__ void mlg_gumbel_kernel(int n, Dtype* numbers) {
  CUDA_KERNEL_LOOP(index, n) {
-  numbers[index] = log( 1 - numbers[index] ) - log( numbers[index] );
+  numbers[index] = log( numbers[index] ) - log( 1 - numbers[index] );
  }
 }
 
@@ -52,11 +52,31 @@ void MLGRNG<Dtype>::mlg_gpu_uniform(const int N, Dtype* data){
 }
 
 template <typename Dtype>
+__global__ void mlg_fix_0_1_kernel(int n, Dtype* numbers) {
+ CUDA_KERNEL_LOOP(index, n) {
+  if(numbers[index] < MLG_MIN_UNI){
+   numbers[index] = MLG_MIN_UNI;
+  }
+  if(numbers[index] > MLG_MAX_UNI){
+   numbers[index] = MLG_MAX_UNI;
+  }
+ }
+}
+
+template <typename Dtype>
 void MLGRNG<Dtype>::mlg_gpu_gumbel(const int N, Dtype* data){
 	mlg_gpu_uniform(N, data);
+
+	// add or substract small value to avoid nans etc
+	mlg_fix_0_1_kernel<<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(N, data);
+	CUDA_POST_KERNEL_CHECK;
+
 	mlg_gumbel_kernel<<<CAFFE_GET_BLOCKS(N), CAFFE_CUDA_NUM_THREADS>>>(N, data);
 	CUDA_POST_KERNEL_CHECK;
 }
+
+
+
 
 template <typename Dtype>
 __global__ void mlg_set_index_kernel(int n, int* numbers) {
