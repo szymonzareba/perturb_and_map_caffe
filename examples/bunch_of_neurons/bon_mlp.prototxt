@@ -60,8 +60,8 @@ layer {
   bottom: "inner1_bon1"
   top: "bon1_inner2"
   bunch_param {
-    bunch_a: 6.65#3.8#5.6#
-    bunch_b: 5.15#3.45#9.3#1
+    bunch_a: 12.25#6.65#3.8#5.6#
+    bunch_b: 28.05#5.15#3.45#9.3#1
   }
 }
 layer {
