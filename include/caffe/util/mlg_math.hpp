@@ -17,6 +17,9 @@ template <typename Dtype>
 __global__ void sample_ge0_kernel(const int n, Dtype* y);
 
 template <typename Dtype>
+__global__ void sample_ge0_kernel(const int n, const Dtype* src, Dtype* dst);
+
+template <typename Dtype>
 __global__ void sample_ge0_5_kernel(const int n, Dtype* y);
 
 template <typename Dtype>
@@ -29,7 +32,19 @@ template <typename Dtype>
 __global__ void replicate_kernel(const int xcount, const int repxcount, const Dtype* x, Dtype* repx);
 
 template <typename Dtype>
-__global__ void negate_kernel(const int n, Dtype* x);
+__global__ void negate_0_1_kernel(const int n, Dtype* x);
+
+template <typename Dtype>
+__global__ void negate_g_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x);
+
+template <typename Dtype>
+__global__ void negate_l_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x);
+
+template <typename Dtype>
+__global__ void negate_0_1_g_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x);
+
+template <typename Dtype>
+__global__ void negate_0_1_l_kernel(const int n, const Dtype threshold, const Dtype* mask, Dtype* x);
 
 template <typename Dtype>
 __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* bMask, const Dtype* b, Dtype* x);

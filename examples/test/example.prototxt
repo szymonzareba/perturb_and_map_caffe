@@ -1,0 +1,75 @@
+name: "example"
+layer {
+  name: "HDF5Data"
+  type: "HDF5Data"
+  top: "data"
+  hdf5_data_param {
+    source: "examples/test/example_train_h5/file.txt"
+    batch_size: 2
+  }
+}
+layer {
+  name: "rbm1"
+  type: "RBMPM1"
+  bottom: "data"
+  top : "rbm1HOut"
+  top : "rbm1HIn"  
+  top : "rbm1loss"
+  
+  loss_weight : 0
+  loss_weight : 0
+  loss_weight : 1
+  
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  
+  rbm_param{
+    num_hidden: 5
+    llAprox: REC
+    w_filler {
+      type: "file"
+      path:"/home/szymon.zareba/storage/RBM-Caffe/inits/example/5/w.txt"
+    }
+    b_filler {
+      type: "file"
+      path:"/home/szymon.zareba/storage/RBM-Caffe/inits/example/5/b.txt"
+    }
+    c_filler {
+      type: "file"
+      path:"/home/szymon.zareba/storage/RBM-Caffe/inits/example/5/c.txt"
+    }
+    
+   rbm_pm_param {
+      map_method : FreeEnergyGradientDescent
+      batch_repeats : 2
+      fegd_param {
+       descent_steps : 50
+       eta_0 : 1
+       eta_decay : 0
+      }
+      coordinate_descent_param {
+       descent_steps : 10
+      }
+      rbm_pm2_param {
+       w_pert_param : Random
+      }     
+    }
+  }
+}
+
+layer {
+  name: "rbmreturn"
+  type: "RBMReturn"
+  bottom: "rbm1HOut"
+  bottom: "rbm1HIn"
+}

@@ -74,12 +74,38 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 
 	// replicate data
 	Blob<Dtype> repX;
-	replicate_data_gpu(repTimes, bottom[0], &repX);
+	this->replicate_data_gpu(repTimes, bottom[0], &repX);
 
 	// replicate hidden
 	Blob<Dtype> repH;
-	replicate_data_gpu(repTimes, top[0], &repH);
-
+	//replicate_data_gpu(repTimes, top[0], &repH);
+	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
+		case RBMPMLayer<Dtype>::CoordinateDescent:
+		{
+			this->replicate_data_gpu(repTimes, top[0], &repH);
+		}
+		break;
+		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
+		{
+			this->replicate_data_gpu(repTimes, top[0], &repH);
+		}
+		break;
+		case RBMPMLayer<Dtype>::FreeEnergyGradientDescent:
+		{
+			this->replicate_data_gpu(repTimes, &this->H0, &repH);
+		}
+		break;
+		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
+		{
+			this->replicate_data_gpu(repTimes, top[0], &repH);
+		}
+		break;
+		case RBMPMLayer<Dtype>::NegativeFreeEnergyGradientDescent:
+		{
+			this->replicate_data_gpu(repTimes, &this->H0, &repH);
+		}
+		break;
+	}
 
 
 	vector<int> shape_vector(2);
@@ -160,7 +186,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			(Dtype)1., wMask.gpu_data(), ones_b.gpu_data(),
 			(Dtype)0., bMask.mutable_gpu_data());
 
-	negate_kernel<Dtype><<<CAFFE_GET_BLOCKS(bMask.count()), CAFFE_CUDA_NUM_THREADS>>>(
+	negate_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(bMask.count()), CAFFE_CUDA_NUM_THREADS>>>(
 			bMask.count(), bMask.mutable_gpu_data());
 	CUDA_POST_KERNEL_CHECK;
 
@@ -193,7 +219,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			(Dtype)1., wMask.gpu_data(), ones_c.gpu_data(),
 			(Dtype)0., cMask.mutable_gpu_data());
 
-	negate_kernel<Dtype><<<CAFFE_GET_BLOCKS(cMask.count()), CAFFE_CUDA_NUM_THREADS>>>(
+	negate_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(cMask.count()), CAFFE_CUDA_NUM_THREADS>>>(
 			cMask.count(), cMask.mutable_gpu_data());
 	CUDA_POST_KERNEL_CHECK;
 
@@ -264,17 +290,65 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	caffe_copy(repX.count(), X0S, X1S);
 	caffe_copy(repH.count(), H0S, H1S);
 
-	find_map_gpu(&X1, &H1, &bTmp, &cTmp, &wTmp);
+	this->find_map_gpu(&X1, &H1, &bTmp, &cTmp, &wTmp);
 
 	X1S = X1.mutable_gpu_data();
 	H1S = H1.mutable_gpu_data();
 
 
+	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
+		case RBMPMLayer<Dtype>::CoordinateDescent:
+		{
+			X1S = X1.mutable_gpu_data();
+			H1S = H1.mutable_gpu_data();
+		}
+		break;
+		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
+		{
+			X1S = X1.mutable_gpu_data();
+			H1S = H1.mutable_gpu_data();
+		}
+		break;
+		case RBMPMLayer<Dtype>::FreeEnergyGradientDescent:
+		{
+			X1S = X1.mutable_gpu_data();
+			H1S = H1.mutable_gpu_data();
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, this->K_,
+					(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
+					(Dtype)0., H1S);
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, 1,
+					(Dtype)1., ones_m_rep.gpu_data(), this->blobs_[2]->gpu_data(),
+					(Dtype)1., H1S);
+				this->sigmoid_gpu(repH.count(), H1S);
+		}
+		break;
+		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
+		{
+			X1S = X1.mutable_gpu_data();
+			H1S = H1.mutable_gpu_data();
+		}
+		break;
+		case RBMPMLayer<Dtype>::NegativeFreeEnergyGradientDescent:
+		{
+			X1S = X1.mutable_gpu_data();
+			H1S = H1.mutable_gpu_data();
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, this->K_,
+					(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
+					(Dtype)0., H1S);
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, 1,
+					(Dtype)1., ones_m_rep.gpu_data(), this->blobs_[2]->gpu_data(),
+					(Dtype)1., H1S);
+				this->sigmoid_gpu(repH.count(), H1S);
+		}
+		break;
+	}
 
 	// set gradient scale
 	Dtype scalar =  -1. / ( this->M_ * repTimes );
-
-
 
 	// calculate gradients
 	if (this->param_propagate_down_[0]) {

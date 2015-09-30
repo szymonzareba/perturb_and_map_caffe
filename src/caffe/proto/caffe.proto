@@ -452,6 +452,9 @@ message RBMPCDParameter {
 enum MAPMethod {
     CoordinateDescent = 0;
     FreeEnergyGradientDescent = 1;
+    GreedyEnergyOptimization = 2;
+    NegativeFreeEnergyGradientDescent = 3;
+    NegativeGreedyEnergyOptimization = 4;
 }
 
 message RBMPMParameter {
@@ -462,6 +465,7 @@ message RBMPMParameter {
 	// map parameters
 	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
 	optional FreeEnergyGradientDescentMAPParameter fegd_param = 4;
+	optional GreedyEnergyOptimizationMAPParameter geo_param = 8;
 	
 	// PM orders
 	optional RBMPM1Parameter rbm_pm1_param = 5;
@@ -487,6 +491,10 @@ message FreeEnergyGradientDescentMAPParameter {
 
 message CoordinateDescentMAPParameter {
 	optional uint32 descent_steps = 1 [default = 1];
+}
+
+message GreedyEnergyOptimizationMAPParameter {
+	optional uint32 steps = 1 [default = 1];
 }
 
 message CSLLogLikelihoodApprox {

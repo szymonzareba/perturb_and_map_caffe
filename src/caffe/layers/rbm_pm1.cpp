@@ -12,6 +12,7 @@ void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
       const vector<Blob<Dtype>*>& bottom){
 
+	/*
 	//create tmp for parameters
     vector<int> bias_shape(2);
 
@@ -67,16 +68,16 @@ void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 	const Dtype* X0S = bottom[0]->cpu_data();
 	const Dtype* H0S = top[0]->cpu_data();
 
-	Dtype* X1S = this->X1S_.mutable_cpu_data();
-	Dtype* H1S = this->H1S_.mutable_cpu_data();
+	Dtype* X1S = this->X1S.mutable_cpu_data();
+	Dtype* H1S = this->H1S.mutable_cpu_data();
 
 	caffe_copy(bottom[0]->count(), X0S, X1S);
 	caffe_copy(top[0]->count(), H0S, H1S);
 
 	find_map_cpu(&(this->X1S_), &(this->H1S_), &bTmp, &cTmp, this->blobs_[0].get());
 
-	X1S = this->X1S_.mutable_cpu_data();
-	H1S = this->H1S_.mutable_cpu_data();
+	X1S = this->X1S.mutable_cpu_data();
+	H1S = this->H1S.mutable_cpu_data();
 
 	if (this->param_propagate_down_[0]) {
 		Blob<Dtype> tmp1(this->blobs_[0]->shape());
@@ -119,7 +120,7 @@ void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 
     	caffe_scal<Dtype>(this->blobs_[2]->count(), scalar, this->blobs_[2]->mutable_cpu_diff());
 	}
-
+*/
 }
 
 #ifdef CPU_ONLY

@@ -46,7 +46,7 @@ layer {
 
 layer {
   name: "rbmcd1"
-  type: "RBMPCD"
+  type: "RBMCD"
   bottom: "bin"
   top : "rbm1HOut"
   top : "rbm1HIn"  
@@ -70,7 +70,7 @@ layer {
   }
   
   rbm_param{
-    num_hidden: 500
+    num_hidden: 20
     llAprox: REC
     w_filler {
       type: "uniform"

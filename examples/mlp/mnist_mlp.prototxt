@@ -29,7 +29,7 @@ layer {
   }
   data_param {
     source: "examples/mlp/mnist_test_lmdb"
-    batch_size: 65
+    batch_size: 64
     backend: LMDB
   }
 }
