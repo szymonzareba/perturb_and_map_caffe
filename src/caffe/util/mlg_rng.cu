@@ -24,7 +24,7 @@ __global__ void mlg_uniform_kernel(curandState_t* states, int n, Dtype* numbers)
 template <typename Dtype>
 __global__ void mlg_gumbel_kernel(int n, Dtype* numbers) {
  CUDA_KERNEL_LOOP(index, n) {
-  numbers[index] = log( numbers[index] ) - log( 1 - numbers[index] );
+  numbers[index] = log( numbers[index] ) - log( (Dtype)1.0 - numbers[index] );
  }
 }
 

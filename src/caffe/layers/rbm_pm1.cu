@@ -76,7 +76,7 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 
 	Blob<Dtype> ones;
 	ones.Reshape(ones_shape);
-	caffe_gpu_set(ones.count(), Dtype(1), ones.mutable_gpu_data());
+	caffe_gpu_set(ones.count(), (Dtype)1., ones.mutable_gpu_data());
 
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(ones.count(), ones.gpu_data())) LOG(INFO) << "ones not finite" << std::endl;
 

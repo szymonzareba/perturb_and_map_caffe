@@ -43,8 +43,8 @@ void RBMCDLayer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
     			(Dtype)1., X1SData);
 
 
-    	sigmoid_gpu(this->X1S.count(), X1SData);
-    	sample_gpu(this->X1S.count(), X1SData);
+    	this->sigmoid_gpu(this->X1S.count(), X1SData);
+    	this->sample_gpu(this->X1S.count(), X1SData);
 
     	// H1S = 1 * X1S * W(T) + 0 * H1S
     	// [m,n] = 1 * [m,k] * [k,n] + 0 * [m,n]

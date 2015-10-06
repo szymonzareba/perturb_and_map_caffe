@@ -279,6 +279,11 @@ class FileFiller : public Filler<Dtype> {
     {
     	//LOG(INFO) << i;
     	str >> data[i];
+
+    	if(data[i] > 5 || data[i] < -5){
+    		LOG(INFO) << i << " " << data[i];
+    	}
+
     	if(str.eof())
     	{
     		LOG(FATAL) << "End of parameter file";

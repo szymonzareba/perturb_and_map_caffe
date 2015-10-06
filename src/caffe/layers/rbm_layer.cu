@@ -56,11 +56,11 @@ void RBMLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 			(Dtype)1., ones_m_.gpu_data(), this->blobs_[2]->gpu_data(),
 			(Dtype)1., this->H0.mutable_gpu_data());
 
-	sigmoid_gpu(top[0]->count(), this->H0.mutable_gpu_data());
+	this->sigmoid_gpu(top[0]->count(), this->H0.mutable_gpu_data());
 
-	sample_gpu(top[0]->count(), this->H0.gpu_data(), top[0]->mutable_gpu_data());
+	this->sample_gpu(top[0]->count(), this->H0.gpu_data(), top[0]->mutable_gpu_data());
 
-	top[2]->mutable_cpu_data()[0] = ll_gpu(top, bottom);
+	top[2]->mutable_cpu_data()[0] = this->ll_gpu(top, bottom);
 
 	if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(bottom[0]->count(), bottom[0]->gpu_data())) LOG(INFO) << "X0S not finite" << std::endl;
 	if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(this->H0.count(), this->H0.gpu_data())) LOG(INFO) << "H0 not finite" << std::endl;
@@ -103,9 +103,9 @@ void RBMLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 				(Dtype)1., X1SData);
 
 
-		sigmoid_gpu(bottom[0]->count(), X1SData);
+		sigmoid_gpu(bottom[1]->count(), X1SData);
 
-		sample_gpu(bottom[0]->count(),  X1SData);
+		sample_gpu(bottom[1]->count(),  X1SData);
 	}
 }
 
@@ -165,9 +165,9 @@ Dtype RBMLayer<Dtype>::ll_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob
 						(Dtype)1., xTmp.mutable_gpu_data());
 
 				int count = xTmp.count();
-				sigmoid_gpu(count, xTmp.mutable_gpu_data());
+				this->sigmoid_gpu(count, xTmp.mutable_gpu_data());
 
-				sample_gpu(count, xTmp.mutable_gpu_data());
+				this->sample_gpu(count, xTmp.mutable_gpu_data());
 
 				caffe_gpu_sub<Dtype>(xTmp.count(), bottom[0]->gpu_data(), xTmp.mutable_gpu_data(), xTmp.mutable_gpu_data());
 
@@ -194,7 +194,7 @@ Dtype RBMLayer<Dtype>::ll_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob
 template <typename Dtype>
 __global__ void sample_gpu2(const int n, Dtype* data, const Dtype* randoms) {
   CUDA_KERNEL_LOOP(index, n) {
-	if(data[index] >= randoms[index])
+	if(data[index] > randoms[index])
 	{
 		data[index] = 1;
 	}
@@ -208,7 +208,7 @@ __global__ void sample_gpu2(const int n, Dtype* data, const Dtype* randoms) {
 template <typename Dtype>
 __global__ void sample_gpu2(const int n, const Dtype* src, Dtype* dst, const Dtype* randoms) {
   CUDA_KERNEL_LOOP(index, n) {
-	if(src[index] >= randoms[index])
+	if(src[index] > randoms[index])
 	{
 		dst[index] = 1;
 	}

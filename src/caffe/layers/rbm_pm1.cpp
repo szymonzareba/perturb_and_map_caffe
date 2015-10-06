@@ -11,7 +11,7 @@ template <typename Dtype>
 void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
       const vector<Blob<Dtype>*>& bottom){
-
+	NOT_IMPLEMENTED;
 	/*
 	//create tmp for parameters
     vector<int> bias_shape(2);
