@@ -1,0 +1,93 @@
+name: "MNIST"
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_ppm1/mnist_train_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_ppm1/mnist_test_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+
+layer {
+  name: "rbm1"
+  type: "RBMPPM1"
+  bottom: "data"
+  top : "rbm1HOut"
+  top : "rbm1HIn"  
+  top : "rbm1loss"
+  
+  loss_weight : 0
+  loss_weight : 0
+  loss_weight : 1
+  
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  
+  rbm_param{
+    num_hidden: 20
+    llAprox: REC
+    w_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
+    b_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
+    c_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
+    rbm_pm_param {
+      map_method : CoordinateDescent
+      batch_repeats : 10
+      coordinate_descent_param {
+       descent_steps : 10
+      }    
+    }        
+  }
+}
+
+layer {
+  name: "rbmreturn"
+  type: "RBMReturn"
+  bottom: "rbm1HOut"
+  bottom: "rbm1HIn"
+}

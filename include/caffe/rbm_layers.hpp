@@ -106,7 +106,7 @@ class RBMPCDLayer : public RBMLayer<Dtype> {
   explicit RBMPCDLayer(const LayerParameter& param)
       : RBMLayer<Dtype>(param) {}
   virtual inline const char* type() const { return "RBM PCD"; }
-  void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
         const vector<Blob<Dtype>*>& top);
  protected:
   virtual void gradient_cpu(const vector<Blob<Dtype>*>& top,
@@ -161,6 +161,28 @@ class RBMPM1Layer : public RBMPMLayer<Dtype> {
 
 /**
  * @brief RBM layer for Forward and Backward calculation.
+ * Includes Perturb and MAP order 1 basic routines
+ */
+template <typename Dtype>
+class RBMPPM1Layer : public RBMPMLayer<Dtype> {
+ public:
+  explicit RBMPPM1Layer(const LayerParameter& param)
+      : RBMPMLayer<Dtype>(param) {}
+  virtual inline const char* type() const { return "RBM PPM1"; }
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+ protected:
+  virtual void gradient_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void gradient_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+  Blob<Dtype> X1Chain;
+  Blob<Dtype> H1Chain;
+};
+
+/**
+ * @brief RBM layer for Forward and Backward calculation.
  * Includes Perturb and MAP order 2 basic routines
  */
 template <typename Dtype>
@@ -168,7 +190,7 @@ class RBMPM2Layer : public RBMPMLayer<Dtype> {
  public:
   explicit RBMPM2Layer(const LayerParameter& param)
       : RBMPMLayer<Dtype>(param) {}
-  virtual inline const char* type() const { return "RBM PM1"; }
+  virtual inline const char* type() const { return "RBM PM2"; }
 
   enum { Random };
 
@@ -182,6 +204,30 @@ class RBMPM2Layer : public RBMPMLayer<Dtype> {
   virtual void find_w_mask_cpu(Blob<Dtype>* W);
 };
 
+/**
+ * @brief RBM layer for Forward and Backward calculation.
+ * Includes Perturb and MAP order 2 basic routines
+ */
+/*
+template <typename Dtype>
+class RBMPPM2Layer : public RBMPMLayer<Dtype> {
+ public:
+  explicit RBMPPM2Layer(const LayerParameter& param)
+      : RBMPPM2Layer<Dtype>(param) {}
+  virtual inline const char* type() const { return "RBM PPM2"; }
+
+  enum { Random };
+
+ protected:
+  virtual void gradient_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void gradient_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+  virtual void find_w_mask_gpu(Blob<Dtype>* W);
+  virtual void find_w_mask_cpu(Blob<Dtype>* W);
+};
+*/
 } // namespace Caffe
 
 #endif  // MLG_RBM_LAYERS_HPP_

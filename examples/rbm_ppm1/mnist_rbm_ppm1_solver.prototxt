@@ -1,0 +1,16 @@
+net: "examples/rbm_ppm1/mnist_rbm_ppm1.prototxt"
+test_iter: 100
+test_interval: 500
+test_compute_loss: true
+base_lr: 0.01
+lr_policy: "fixed"
+gamma: 0
+stepsize: 10000
+display: 100
+max_iter: 4500
+weight_decay: 0
+snapshot: 500
+snapshot_prefix: "examples/rbm_ppm1/mnist_rbm_ppm1"
+momentum: 0.9
+# solver mode: CPU or GPU
+solver_mode: GPU
