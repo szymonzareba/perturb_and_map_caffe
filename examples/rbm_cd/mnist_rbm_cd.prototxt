@@ -1,27 +1,35 @@
-ame: "exp"
+name: "mnist_rbm_cd"
 layer {
-name: "HDF5Data"
-type: "HDF5Data"
-top: "data"
-include {
-phase: TRAIN
-}
-hdf5_data_param {
-source: "/home/szymon.zareba/storage/RBM-Caffe/datasets/mnist/train.txt"
-batch_size:100
-}
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_cd/mnist_train_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
 }
 layer {
-name: "HDF5Data"
-type: "HDF5Data"
-top: "data"
-include {
-phase: TEST
-}
-hdf5_data_param {
-source: "/home/szymon.zareba/storage/RBM-Caffe/datasets/mnist/test.txt"
-batch_size:100
-}
+  name: "data"
+  type: "Data"
+  top: "data"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.0039215684
+  }
+  data_param {
+    source: "examples/rbm_cd/mnist_test_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
 }
 layer {
 name: "bin1"
@@ -57,18 +65,21 @@ decay_mult: 0
 rbm_param{
 num_hidden:500
 llAprox: REC
-w_filler {
-type: "file"
-path:"/home/szymon.zareba/storage/RBM-Caffe/inits/mnist/500/w.txt"
-}
-b_filler {
-type: "file"
-path:"/home/szymon.zareba/storage/RBM-Caffe/inits/mnist/500/b.txt"
-}
-c_filler {
-type: "file"
-path:"/home/szymon.zareba/storage/RBM-Caffe/inits/mnist/500/c.txt"
-}
+    w_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
+    b_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
+    c_filler {
+      type: "gaussian"
+      mean: 0
+      std: 0.05
+    }
 rbm_cd_param {
 gibbs_steps :1
 }

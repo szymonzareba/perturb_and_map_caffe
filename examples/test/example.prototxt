@@ -5,12 +5,12 @@ layer {
   top: "data"
   hdf5_data_param {
     source: "examples/test/example_train_h5/file.txt"
-    batch_size: 2
+    batch_size: 1
   }
 }
 layer {
   name: "rbm1"
-  type: "RBMPPM1"
+  type: "RBMCD"
   bottom: "data"
   top : "rbm1HOut"
   top : "rbm1HIn"  
@@ -49,21 +49,9 @@ layer {
       path:"/home/szymon.zareba/storage/RBM-Caffe/inits/example/5/c.txt"
     }
     
-   rbm_pm_param {
-      map_method : CoordinateDescent
-      batch_repeats : 2
-      fegd_param {
-       descent_steps : 50
-       eta_0 : 1
-       eta_decay : 0
-      }
-      coordinate_descent_param {
-       descent_steps : 10
-      }
-      rbm_pm2_param {
-       w_pert_param : Random
-      }     
-    }
+   rbm_cd_param {
+    gibbs_steps:1
+   }
   }
 }
 

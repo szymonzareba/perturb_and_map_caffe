@@ -66,6 +66,11 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
   }
   iter_ = 0;
   current_step_ = 0;
+
+  // MLG Early Stopping
+  earlyStopLoss = 100000000000;
+  earlyStopIter = 0;
+  // MLG Early Stopping
 }
 
 template <typename Dtype>
@@ -400,6 +405,26 @@ void Solver<Dtype>::Test(const int test_net_id) {
     loss /= param_.test_iter(test_net_id);
     LOG(INFO) << "Test loss: " << loss;
   }
+
+  // MLG Early stopping
+  if(param_.early_stopping() != 0){
+	  if ( loss < earlyStopLoss ) {
+		  LOG(INFO) << "Early stopping update : " << loss;
+		  earlyStopLoss = loss;
+		  earlyStopIter = 0;
+	  } else {
+		  earlyStopIter ++;
+		  LOG(INFO) << "Early stopping iter : " << earlyStopIter << "/" << param_.early_stopping() << " " << earlyStopLoss;
+		  if(earlyStopIter >= param_.early_stopping()){
+			  requested_early_exit_ = true;
+			  LOG(INFO)     << "Test early stopping.";
+			  return;
+		  }
+	  }
+
+  }
+  // MLG Early stopping end
+
   for (int i = 0; i < test_score.size(); ++i) {
     const int output_blob_index =
         test_net->output_blob_indices()[test_score_output_id[i]];

@@ -1,5 +1,6 @@
-net: "/home/szymon.zareba/storage/RBM-Caffe/experiments/CD-(1)-(mnist-bin)-0.01-0.9-0-100-500-(1)/exp.prototxt"
-test_interval: 500
+net: "examples/rbm_cd/mnist_rbm_cd.prototxt"
+test_interval:500
+test_iter:1000
 test_compute_loss: true
 base_lr:0.01
 lr_policy: "fixed"
@@ -7,6 +8,6 @@ display: 100
 max_iter:5
 weight_decay:0
 snapshot:1
-snapshot_prefix: "/home/szymon.zareba/storage/RBM-Caffe/experiments/CD-(1)-(mnist-bin)-0.01-0.9-0-100-500-(1)/snap"
+snapshot_prefix: "examples/rbm_cd/mnist_rbm_cd"
 momentum:0.9
 solver_mode: GPU

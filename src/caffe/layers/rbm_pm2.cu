@@ -247,6 +247,14 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			wTmp.mutable_gpu_data());
 	CUDA_POST_KERNEL_CHECK;
 
+	MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
+	caffe_gpu_scal<Dtype>(ra.count(), -pertStr, ra.mutable_gpu_data());
+	add_with_mask_kernel<Dtype><<<CAFFE_GET_BLOCKS(wTmp.count()), CAFFE_CUDA_NUM_THREADS>>>(
+			wTmp.count(),
+			wTmp.mutable_gpu_data(),
+			wMask.gpu_data(), ra.gpu_data(),
+			wTmp.mutable_gpu_data());
+	CUDA_POST_KERNEL_CHECK;
 
 
 	// perturb b

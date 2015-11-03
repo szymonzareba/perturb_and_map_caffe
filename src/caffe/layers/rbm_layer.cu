@@ -109,6 +109,8 @@ void RBMLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 	}
 }
 
+
+
 template <typename Dtype>
 void RBMLayer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
@@ -132,6 +134,32 @@ void RBMLayer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 				  << " Layer cannot calculate c gradient.";
 	  }
 }
+
+template <typename Dtype>
+__global__ void fix_0_1(const int n, Dtype* y) {
+  CUDA_KERNEL_LOOP(index, n) {
+	if(y[index] == (Dtype) 0.0){
+		y[index] = (Dtype) 0.00001;
+	}
+	if(y[index] == (Dtype) 1.0){
+		y[index] = (Dtype) ( 1.0 - 0.00001 );
+	}
+  }
+}
+
+template <typename Dtype>
+__global__ void add_log(const int n, const Dtype* x0,  const Dtype* x1,  Dtype* combined) {
+  CUDA_KERNEL_LOOP(index, n) {
+	  if( x0[index] < 0.5 ){
+		  combined[index] = log( 1.0 - x1[index] );
+	  }
+	  else{
+		  combined[index] = log( x1[index] );
+	  }
+  }
+}
+
+
 
 template <typename Dtype>
 Dtype RBMLayer<Dtype>::ll_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom)
@@ -167,16 +195,28 @@ Dtype RBMLayer<Dtype>::ll_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob
 				int count = xTmp.count();
 				this->sigmoid_gpu(count, xTmp.mutable_gpu_data());
 
-				this->sample_gpu(count, xTmp.mutable_gpu_data());
+			    //x1(x1==0) = eps;
+			    //x1(x1==1) = 1-eps;
+				fix_0_1<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, xTmp.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
 
-				caffe_gpu_sub<Dtype>(xTmp.count(), bottom[0]->gpu_data(), xTmp.mutable_gpu_data(), xTmp.mutable_gpu_data());
+				//error = -mean(sum( x0 .* log( x1 ) + (1-x0) .* log( (1-x1) ) ));
+				Blob<Dtype> combined;
+				combined.ReshapeLike(this->X1S);
 
+				//x0 .* log( x1 )+ (1-x0) .* log( (1-x1) )
+				add_log<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, bottom[0]->gpu_data(), xTmp.gpu_data(), combined.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				// combined = x = [M,K]
 				Dtype r;
-				caffe_gpu_asum<Dtype>(xTmp.count(), xTmp.gpu_data(), &r);
-				r = r / (Dtype)count;
+
+				// sum over k and M
+				caffe_gpu_asum<Dtype>(combined.count(), combined.gpu_data(), &r);
+				// divide by m
+				r = r / this->M_;
 
 				loss = r;
-
 			}
 			break;
 			default:

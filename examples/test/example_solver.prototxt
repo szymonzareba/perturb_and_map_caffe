@@ -1,6 +1,4 @@
 net: "examples/test/example.prototxt"
-test_interval: 500
-test_compute_loss: true
 base_lr: 0.01
 lr_policy: "fixed"
 gamma: 0

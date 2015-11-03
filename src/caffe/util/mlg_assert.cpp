@@ -5,7 +5,7 @@ namespace caffe {
 
 template <typename Dtype>
 MLGASSERT<Dtype>::MLGASSERT(){
-	work = true;
+	work = false;
 }
 
 template <typename Dtype>

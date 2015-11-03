@@ -73,7 +73,11 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			const Dtype etaDecay = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_decay();
 
 			for(int descent = 0; descent < descentSteps; descent++){
-				Dtype eta = eta0 / ( 1 + etaDecay * descent );
+				Dtype eta = eta0;
+
+				if(etaDecay != 0){
+					eta = eta0 * sqrt( etaDecay  / (etaDecay + descent) );
+				}
 
 				// hs = sigmoid ( c + w * x )
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
@@ -109,8 +113,16 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
 			}
 
+			// 0.5 sample
 			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), X->mutable_gpu_data());
 			CUDA_POST_KERNEL_CHECK;
+
+			// no sample
+			// nothing
+
+			// probabilistic sample
+			//this->sample_gpu(X->count(), X->mutable_gpu_data());
+
 		}
 		break;
 		case RBMPMLayer::GreedyEnergyOptimization:
@@ -186,7 +198,11 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 
 					for(int descent = 0; descent < descentSteps; descent++){
-						Dtype eta = -eta0 / ( 1 + etaDecay * descent );
+						Dtype eta = eta0;
+
+						if(etaDecay != 0){
+							eta = eta0 * sqrt( etaDecay  / (etaDecay + descent) );
+						}
 
 						// h = sigmoid ( c + w * x )
 						caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,

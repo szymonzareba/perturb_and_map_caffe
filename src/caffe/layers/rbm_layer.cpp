@@ -240,6 +240,8 @@ void RBMLayer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
 template <typename Dtype>
 Dtype RBMLayer<Dtype>::ll_cpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom)
 {
+	NOT_IMPLEMENTED;
+
 	Dtype loss = 0;
 
 	switch(this->layer_param_.rbm_param().llaprox())
