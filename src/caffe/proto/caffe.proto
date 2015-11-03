@@ -391,12 +391,19 @@ message LayerParameter {
   optional RBMParameter rbm_param = 301;
   optional RBMReturnParameter rbm_return_param = 302;
   optional BinarizationParameter bin_param = 303;
+  optional BunchOfNeuronsParameter bunch_param = 304;
 }
 
 
 ////////////////////////
 ///// MLG Protobuf /////
 ////////////////////////
+
+message BunchOfNeuronsParameter {
+  optional double bunch_a = 1 [default = 1];
+  optional double bunch_b = 2 [default = 1];
+}
+
 
 message BinarizationParameter {
   optional bool work = 1 [default = false];

@@ -12,7 +12,7 @@ layer {
   }
   data_param {
     source: "examples/bunch_of_neurons/mnist_train_lmdb"
-    batch_size: 64
+    batch_size: 128
     backend: LMDB
   }
 }
@@ -28,8 +28,8 @@ layer {
     scale: 0.0039215684
   }
   data_param {
-    source: "examples/mlp/mnist_test_lmdb"
-    batch_size: 64
+    source: "examples/bunch_of_neurons/mnist_test_lmdb"
+    batch_size: 128
     backend: LMDB
   }
 }
@@ -38,14 +38,14 @@ layer {
   name: "InnerProduct_1"
   type: "InnerProduct"
   bottom: "data"
-  top: "inner1_sigmoid2"
+  top: "inner1_hidden1"
   param {
   }
   param {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 10000
+    num_output: 400
     weight_filler {
       type: "xavier"
     }
@@ -55,16 +55,48 @@ layer {
   }
 }
 layer {
-  name: "Sigmoid_2"
-  type: "Sigmoid"
-  bottom: "inner1_sigmoid2"
-  top: "sigmoid2_inner3"
+  name: "relu_1"
+  type: "ReLU"
+  bottom: "inner1_hidden1"
+  top: "hidden1_inner2"
 }
+
+layer {
+  name: "InnerProduct_2"
+  type: "InnerProduct"
+  bottom: "hidden1_inner2"
+  top: "inner2_hidden2"
+  param {
+  }
+  param {
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 400
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "bon_2"
+  type: "BunchOfNeurons"
+  bottom: "inner2_hidden2"
+  top: "hidden2_inner3"
+  bunch_param {
+    bunch_a: 6.65#3.8#5.6#
+    bunch_b: 15.15#3.45#9.3#
+  }
+}
+
 layer {
   name: "InnerProduct_3"
   type: "InnerProduct"
-  bottom: "sigmoid2_inner3"
-  top: "inner3_sigmoid4"
+  bottom: "hidden2_inner3"
+  top: "inner3"
   param {
   }
   param {
@@ -80,28 +112,21 @@ layer {
     }
   }
 }
-layer {
-  name: "Sigmoid_4"
-  type: "Sigmoid"
-  bottom: "inner3_sigmoid4"
-  top: "sigmoid4_softmax51"
-}
 
 layer {
-  name: "Softmax5_1"
-  type: "SoftmaxWithLoss"
-  bottom: "sigmoid4_softmax51"
-  bottom: "label"
-  top: "loss"
-}
-
-layer {
-  name: "accuracy5_2"
+  name: "accuracy3_1"
   type: "Accuracy"
-  bottom: "sigmoid4_softmax51"
+  bottom: "inner3"
   bottom: "label"
   top: "accuracy"
   include {
     phase: TEST
   }
+}
+layer {
+  name: "Softmax3_2"
+  type: "SoftmaxWithLoss"
+  bottom: "inner3"
+  bottom: "label"
+  top: "loss"
 }
