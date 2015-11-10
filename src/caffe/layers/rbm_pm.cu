@@ -43,8 +43,6 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), X->mutable_gpu_data());
 				CUDA_POST_KERNEL_CHECK;
 
-
-
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 						this->M_ * repTimes, this->N_, this->K_,
 						(Dtype)1., XS, W->gpu_data(),
@@ -60,6 +58,15 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
 			}
+
+			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, this->K_,
+					(Dtype)1., XS, W->gpu_data(),
+					(Dtype)0., HS);
+
+			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
+			this->sigmoid_gpu(H->count(), HS);
+
 		}
 		break;
 		case RBMPMLayer::FreeEnergyGradientDescent:
@@ -72,6 +79,9 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			const Dtype eta0 = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_0();
 			const Dtype etaDecay = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_decay();
 
+			Dtype* XS = X->mutable_gpu_data();
+			Dtype* HS = H->mutable_gpu_data();
+
 			for(int descent = 0; descent < descentSteps; descent++){
 				Dtype eta = eta0;
 
@@ -82,13 +92,13 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 				// hs = sigmoid ( c + w * x )
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 						  m, this->N_, this->K_,
-						  (Dtype)1., X->gpu_data(), W->gpu_data(),
-						  (Dtype)0., H->mutable_gpu_data());
+						  (Dtype)1., XS, W->gpu_data(),
+						  (Dtype)0., HS);
 
 
-				caffe_gpu_add(H->count(), H->gpu_data(), c->gpu_data(), H->mutable_gpu_data());
+				caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
 
-				this->sigmoid_gpu(H->count(), H->mutable_gpu_data());
+				this->sigmoid_gpu(H->count(), HS);
 
 				// x = x + eta * ( b + W * h )
 				// x = x + (eta *  W * h) + (eta * b)
@@ -96,15 +106,85 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 				// x = (1 * x) + (eta *  W * h)
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
 						m, this->K_, this->N_,
-						eta, H->gpu_data(), W->gpu_data(),
-						1., X->mutable_gpu_data());
+						eta, HS, W->gpu_data(),
+						1., XS);
 
 				// x = (1 * x) + (eta * b)
-				add_scaled_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), (Dtype) 1., X->gpu_data(), eta, b->gpu_data(), X->mutable_gpu_data());
+				add_scaled_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), (Dtype) 1., XS, eta, b->gpu_data(), XS);
 				CUDA_POST_KERNEL_CHECK;
 
 				// bring back to [0, 1]
-				relax_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), X->mutable_gpu_data());
+				relax_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
+				CUDA_POST_KERNEL_CHECK;
+
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), XS)) LOG(INFO) << "X not finite" << std::endl;
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H->count(), HS)) LOG(INFO) << "H not finite" << std::endl;
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), HS)) LOG(INFO) << "H not in float range" << std::endl;
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), XS)) LOG(INFO) << "X not in float range" << std::endl;
+			}
+
+			// 0.5 sample
+			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
+			CUDA_POST_KERNEL_CHECK;
+
+			// no sample
+			// nothing
+
+			// probabilistic sample
+			//this->sample_gpu(X->count(), X->mutable_gpu_data());
+
+			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, this->K_,
+					(Dtype)1., XS, W->gpu_data(),
+					(Dtype)0., HS);
+
+			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
+			this->sigmoid_gpu(H->count(), HS);
+
+		}
+		break;
+		case RBMPMLayer::FreeEnergyGradientDescentEta2:
+		{
+			const int descentSteps = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().descent_steps();
+			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
+
+			const int m = this->M_ * repTimes;
+
+			const Dtype eta0 = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_0();
+			const Dtype etaDecay = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_decay();
+
+			Dtype* XS = X->mutable_gpu_data();
+			Dtype* HS = H->mutable_gpu_data();
+
+			for(int descent = 0; descent < descentSteps; descent++){
+				Dtype eta = eta0 / ( 1 + etaDecay * descent );
+
+				// hs = sigmoid ( c + w * x )
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+						  m, this->N_, this->K_,
+						  (Dtype)1., XS, W->gpu_data(),
+						  (Dtype)0., HS);
+
+
+				caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
+
+				this->sigmoid_gpu(H->count(), HS);
+
+				// x = x + eta * ( b + W * h )
+				// x = x + (eta *  W * h) + (eta * b)
+
+				// x = (1 * x) + (eta *  W * h)
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
+						m, this->K_, this->N_,
+						eta, HS, W->gpu_data(),
+						1., XS);
+
+				// x = (1 * x) + (eta * b)
+				add_scaled_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), (Dtype) 1., XS, eta, b->gpu_data(), XS);
+				CUDA_POST_KERNEL_CHECK;
+
+				// bring back to [0, 1]
+				relax_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 				CUDA_POST_KERNEL_CHECK;
 
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), X->gpu_data())) LOG(INFO) << "X not finite" << std::endl;
@@ -114,28 +194,26 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			}
 
 			// 0.5 sample
-			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), X->mutable_gpu_data());
+			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 			CUDA_POST_KERNEL_CHECK;
 
-			// no sample
-			// nothing
+			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, this->K_,
+					(Dtype)1., XS, W->gpu_data(),
+					(Dtype)0., HS);
 
-			// probabilistic sample
-			//this->sample_gpu(X->count(), X->mutable_gpu_data());
+			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
+			this->sigmoid_gpu(H->count(), HS);
 
 		}
 		break;
-		case RBMPMLayer::GreedyEnergyOptimization:
+		case RBMPMLayer::NegativeGreedyEnergyOptimization:
 		{
 			const int steps = this->layer_param_.rbm_param().rbm_pm_param().geo_param().steps();
 			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
 
 			Dtype* XS = X->mutable_gpu_data();
-			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
-
 			Dtype* HS = H->mutable_gpu_data();
-			//sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), HS);
-
 
 			Blob<Dtype> dX;
 			dX.ReshapeLike(*X);
@@ -164,143 +242,36 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 				caffe_gpu_add(H->count(), dHData, c->gpu_data(), dHData);
 
-				negate_l_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), 0.5, XS, dXData);
+
+				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(dH.count()), CAFFE_CUDA_NUM_THREADS>>>(dH.count(), dHData);
 				CUDA_POST_KERNEL_CHECK;
 
-				negate_l_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), 0.5, HS, dHData);
+				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(dX.count()), CAFFE_CUDA_NUM_THREADS>>>(dX.count(), dXData);
 				CUDA_POST_KERNEL_CHECK;
 
-				negate_0_1_g_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), 0, dXData, XS);
-				CUDA_POST_KERNEL_CHECK;
+				caffe_copy(dH.count(), dHData, HS);
+				caffe_copy(dX.count(), dXData, XS);
 
-				negate_0_1_g_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), 0, dHData, HS);
-				CUDA_POST_KERNEL_CHECK;
 
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), X->gpu_data())) LOG(INFO) << "X not finite" << std::endl;
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H->count(), H->gpu_data())) LOG(INFO) << "H not finite" << std::endl;
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
-
 			}
+
+			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+					this->M_ * repTimes, this->N_, this->K_,
+					(Dtype)1., XS, W->gpu_data(),
+					(Dtype)0., HS);
+
+			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
+			this->sigmoid_gpu(H->count(), HS);
 		}
 		break;
-		case RBMPMLayer::NegativeFreeEnergyGradientDescent:
-				{
-					const int descentSteps = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().descent_steps();
-					const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
-
-					const Dtype eta0 = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_0();
-					const Dtype etaDecay = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_decay();
-
-					Dtype* XS = X->mutable_gpu_data();
-					Dtype* HS = H->mutable_gpu_data();
-
-
-
-					for(int descent = 0; descent < descentSteps; descent++){
-						Dtype eta = eta0;
-
-						if(etaDecay != 0){
-							eta = eta0 * sqrt( etaDecay  / (etaDecay + descent) );
-						}
-
-						// h = sigmoid ( c + w * x )
-						caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-								  this->M_ * repTimes, this->N_, this->K_,
-								  (Dtype)1., XS, W->gpu_data(),
-								  (Dtype)0., HS);
-
-						caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
-
-						this->sigmoid_gpu(H->count(), HS);
-
-						// x = x + eta * ( b + W * h )
-						// x = x + (eta *  W * h) + (eta * b)
-
-						// x = (1 * x) + (eta *  W * h)
-						caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-								this->M_ * repTimes, this->K_, this->N_,
-								eta, HS, W->gpu_data(),
-								(Dtype)1., XS);
-
-						// x = (1 * x) + (eta * b)
-						add_scaled_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), (Dtype) 1., XS, eta, b->gpu_data(), XS);
-						CUDA_POST_KERNEL_CHECK;
-
-						// bring back to [0, 1]
-						relax_0_1_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
-						CUDA_POST_KERNEL_CHECK;
-
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), X->gpu_data())) LOG(INFO) << "X not finite" << std::endl;
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H->count(), H->gpu_data())) LOG(INFO) << "H not finite" << std::endl;
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
-					}
-
-					sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
-					CUDA_POST_KERNEL_CHECK;
-				}
-				break;
-				case RBMPMLayer::NegativeGreedyEnergyOptimization:
-				{
-					const int steps = this->layer_param_.rbm_param().rbm_pm_param().geo_param().steps();
-					const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
-
-					Dtype* XS = X->mutable_gpu_data();
-					sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
-
-					Dtype* HS = H->mutable_gpu_data();
-					//sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), HS);
-
-
-					Blob<Dtype> dX;
-					dX.ReshapeLike(*X);
-
-					Blob<Dtype> dH;
-					dH.ReshapeLike(*H);
-
-					Dtype* dXData = dX.mutable_gpu_data();
-					Dtype* dHData = dH.mutable_gpu_data();
-
-					for(int step = 0; step < steps; step++){
-
-						// dX
-						caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-								this->M_ * repTimes, this->K_, this->N_,
-								(Dtype)1., HS, W->gpu_data(),
-								(Dtype)0., dXData);
-
-						caffe_gpu_add(X->count(), dXData, b->gpu_data(), dXData);
-
-						// dH
-						caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-								this->M_ * repTimes, this->N_, this->K_,
-								(Dtype)1., XS, W->gpu_data(),
-								(Dtype)0., dHData);
-
-						caffe_gpu_add(H->count(), dHData, c->gpu_data(), dHData);
-
-						negate_g_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), 0.5, XS, dXData);
-						CUDA_POST_KERNEL_CHECK;
-
-						negate_g_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), 0.5, HS, dHData);
-						CUDA_POST_KERNEL_CHECK;
-
-						negate_0_1_g_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), 0, dXData, XS);
-						CUDA_POST_KERNEL_CHECK;
-
-						negate_0_1_g_kernel<Dtype><<<CAFFE_GET_BLOCKS(H->count()), CAFFE_CUDA_NUM_THREADS>>>(H->count(), 0, dHData, HS);
-						CUDA_POST_KERNEL_CHECK;
-
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), X->gpu_data())) LOG(INFO) << "X not finite" << std::endl;
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H->count(), H->gpu_data())) LOG(INFO) << "H not finite" << std::endl;
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
-							if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
-					}
-				}
-				break;
 		default:
-		{}
+		{
+			NOT_IMPLEMENTED;
+		}
 	}
 
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), X->gpu_data())) LOG(INFO) << "X not finite" << std::endl;

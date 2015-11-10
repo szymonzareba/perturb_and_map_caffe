@@ -23,16 +23,12 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	const Dtype pertStr = this->layer_param_.rbm_param().rbm_pm_param().pert_str();
 
 	Blob<Dtype> repX;
+	Blob<Dtype> repH;
+
 	this->replicate_data_gpu(repTimes, bottom[0], &repX);
 
-	Blob<Dtype> repH;
 	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
 		case RBMPMLayer<Dtype>::CoordinateDescent:
-		{
-			this->replicate_data_gpu(repTimes, top[0], &repH);
-		}
-		break;
-		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
 		{
 			this->replicate_data_gpu(repTimes, top[0], &repH);
 		}
@@ -42,17 +38,23 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			this->replicate_data_gpu(repTimes, &this->H0, &repH);
 		}
 		break;
-		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
-		{
-			this->replicate_data_gpu(repTimes, top[0], &repH);
-		}
-		break;
-		case RBMPMLayer<Dtype>::NegativeFreeEnergyGradientDescent:
+		case RBMPMLayer<Dtype>::FreeEnergyGradientDescentEta2:
 		{
 			this->replicate_data_gpu(repTimes, &this->H0, &repH);
 		}
 		break;
+		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
+		{
+			this->replicate_data_gpu(repTimes, top[0], &repH);
+			//this->replicate_data_gpu(repTimes, &this->H0, &repH);
+		}
+		break;
+		default:
+		{
+			NOT_IMPLEMENTED;
+		}
 	}
+
 
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(repX.count(), repX.gpu_data())) LOG(INFO) << "repX not finite" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(this->H0.count(), this->H0.gpu_data())) LOG(INFO) << "H0 not finite" << std::endl;
@@ -138,18 +140,39 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(cTmp.count(), cTmp.gpu_data())) LOG(INFO) << "cTmp not in float range" << std::endl;
 
 	Blob<Dtype> X1;
-	X1.ReshapeLike(repX);
-
 	Blob<Dtype> H1;
+
+	X1.ReshapeLike(repX);
 	H1.ReshapeLike(repH);
 
 	const Dtype* X0S = repX.gpu_data();
 	const Dtype* H0S = repH.gpu_data();
+
 	Dtype* X1S = X1.mutable_gpu_data();
 	Dtype* H1S = H1.mutable_gpu_data();
 
-	caffe_copy(repX.count(), X0S, X1S);
-	caffe_copy(repH.count(), H0S, H1S);
+	if(this->persistent){
+		// init from chain
+		caffe_copy(this->X1Chain.count(), X1Chain.gpu_data(), X1S);
+	}
+	else{
+		// init from data
+		caffe_copy(repX.count(), X0S, X1S);
+	}
+
+	// init h1 perturbed
+	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+			this->M_ * repTimes, this->N_, this->K_,
+			(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
+			(Dtype)0., H1S);
+
+	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+			this->M_ * repTimes, this->N_, 1,
+			(Dtype)1., ones.gpu_data(), cTmp.gpu_data(),
+			(Dtype)1., H1S);
+
+	this->sigmoid_gpu(repH.count(), H1S);
+
 
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X1.count(), X1.gpu_data())) LOG(INFO) << "X1 not finite" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H1.count(), H1.gpu_data())) LOG(INFO) << "H1 not finite" << std::endl;
@@ -162,94 +185,15 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H1.count(), H1.gpu_data())) LOG(INFO) << "H1 not finite" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X1.count(), X1.gpu_data())) LOG(INFO) << "X1 not in float range" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H1.count(), H1.gpu_data())) LOG(INFO) << "H1 not in float range" << std::endl;
-
-	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
-		case RBMPMLayer<Dtype>::CoordinateDescent:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-		}
-		break;
-		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-		}
-		break;
-		case RBMPMLayer<Dtype>::FreeEnergyGradientDescent:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-
-/*
-			Blob<Dtype> X1MAP;
-			X1MAP.ReshapeLike(X1);
-			caffe_copy(X1MAP.count(), X1S, X1MAP.mutable_gpu_data());
-			this->sample_gpu(X1MAP.count(), X1MAP.mutable_gpu_data());
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., X1MAP.gpu_data(), this->blobs_[0]->gpu_data(),
-					(Dtype)0., H1S);
-*/
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
-					(Dtype)0., H1S);
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, 1,
-					(Dtype)1., ones.gpu_data(), this->blobs_[2]->gpu_data(),
-					(Dtype)1., H1S);
-
-			this->sigmoid_gpu(repH.count(), H1S);
-		}
-		break;
-		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-		}
-		break;
-		case RBMPMLayer<Dtype>::NegativeFreeEnergyGradientDescent:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-/*
-			Blob<Dtype> X1MAP;
-			X1MAP.ReshapeLike(X1);
-			caffe_gpu_copy(X1MAP.count(), X1S, X1MAP.mutable_gpu_data());
-			this->sample_gpu(X1MAP.count(), X1MAP.mutable_gpu_data());
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., X1MAP.gpu_data(), this->blobs_[0]->gpu_data(),
-					(Dtype)0., H1S);
-*/
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
-					(Dtype)0., H1S);
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, 1,
-					(Dtype)1., ones.gpu_data(), this->blobs_[2]->gpu_data(),
-					(Dtype)1., H1S);
-
-			this->sigmoid_gpu(repH.count(), H1S);
-		}
-		break;
-	}
-
-		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X1.count(), X1.gpu_data())) LOG(INFO) << "X1 not finite" << std::endl;
-		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H1.count(), H1.gpu_data())) LOG(INFO) << "H1 not finite" << std::endl;
-
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X1.count(), X1.gpu_data(),0,1)) LOG(INFO) << "X1 not in range" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H1.count(), H1.gpu_data(),0,1)) LOG(INFO) << "H1 not in range" << std::endl;
 
-		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X1.count(), X1.gpu_data())) LOG(INFO) << "X1 not in float range" << std::endl;
-		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H1.count(), H1.gpu_data())) LOG(INFO) << "H1 not in float range" << std::endl;
+
+	if(this->persistent)
+	{
+		// save to chain
+		caffe_copy(this->X1Chain.count(), X1S, X1Chain.mutable_gpu_data());
+	}
 
 	// set gradient scale
 	Dtype scalar =  -1. / ( this->M_ * repTimes );

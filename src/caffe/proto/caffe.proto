@@ -433,12 +433,6 @@ message RBMParameter {
   optional RBMCDParameter rbm_cd_param = 7;
   optional RBMPCDParameter rbm_pcd_param = 12;
   optional RBMPMParameter rbm_pm_param = 13;
-  
-  // ll specific parameters
-  optional CSLLogLikelihoodApprox csl_llaprox_param = 8;
-  optional AISLogLikelihoodApprox ais_llaprox_param = 9;
-  optional RAISLogLikelihoodApprox rais_llaprox_param = 10;
-  optional RECLogLikelihoodApprox rec_llaprox_param = 11;  
 }
 
 
@@ -457,12 +451,14 @@ enum MAPMethod {
     GreedyEnergyOptimization = 2;
     NegativeFreeEnergyGradientDescent = 3;
     NegativeGreedyEnergyOptimization = 4;
+    FreeEnergyGradientDescentEta2 = 5;
 }
 
 message RBMPMParameter {
 	optional MAPMethod map_method = 1 [default = CoordinateDescent];
 	optional uint32 batch_repeats = 2 [default = 1];
 	optional float pert_str = 7 [default = 1];
+	optional bool persistent = 9 [default = false];
 	
 	// map parameters
 	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
@@ -499,17 +495,7 @@ message GreedyEnergyOptimizationMAPParameter {
 	optional uint32 steps = 1 [default = 1];
 }
 
-message CSLLogLikelihoodApprox {
-}
 
-message RECLogLikelihoodApprox {
-}
-
-message AISLogLikelihoodApprox {
-}
-
-message RAISLogLikelihoodApprox {
-}
 
 
 ////////////////////////////

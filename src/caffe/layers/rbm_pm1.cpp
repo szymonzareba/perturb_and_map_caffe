@@ -8,6 +8,24 @@
 namespace caffe {
 
 template <typename Dtype>
+void RBMPM1Layer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {
+	RBMLayer<Dtype>::LayerSetUp(bottom,top);
+
+	const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
+	this->persistent = this->layer_param_.rbm_param().rbm_pm_param().persistent();
+
+	if(this->persistent){
+		vector<int> X1SShape(2);
+		X1SShape[0] = this->M_*repTimes;
+		X1SShape[1] = this->K_;
+		X1Chain.Reshape(X1SShape);
+		caffe_rng_uniform(X1Chain.count(), Dtype(0.), Dtype(1.), X1Chain.mutable_cpu_data());
+	}
+}
+
+
+template <typename Dtype>
 void RBMPM1Layer<Dtype>::gradient_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down,
       const vector<Blob<Dtype>*>& bottom){
