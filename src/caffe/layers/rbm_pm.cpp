@@ -8,7 +8,8 @@ namespace caffe {
 
 template <typename Dtype>
 void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W){
-
+	NOT_IMPLEMENTED;
+	/*
 	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
 		case RBMPMLayer::CoordinateDescent:
 		{
@@ -77,6 +78,7 @@ void RBMPMLayer<Dtype>::find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			LOG(INFO) << "No such MAP method";
 		}
 	}
+	*/
 }
 
 

@@ -8,7 +8,12 @@
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 
+#include <stdio.h>
+#include <stdlib.h>
+
+
 #ifndef CPU_ONLY
+#include <cuda.h>
 #include <curand.h>
 #include <curand_kernel.h>
 #endif
@@ -24,9 +29,11 @@ class MLGRNG {
 		static MLGRNG<Dtype> * pInstance;
 		MLGRNG();
 		MLGRNG(const MLGRNG<Dtype>& rs){
-			stateCount = rs.stateCount;
-			states = rs.states;
+			//stateCount = rs.stateCount;
+			//states = rs.states;
 			pInstance = rs.pInstance;
+			gen = rs.gen;
+			this->initialized = rs.initialized;
 		}
 		MLGRNG<Dtype>& operator = (const MLGRNG<Dtype>& rs) {
 			if (this != &rs) {
@@ -38,8 +45,11 @@ class MLGRNG {
 		~MLGRNG ();
 
 #ifndef CPU_ONLY
-		int stateCount;
-		curandState_t* states;
+		//int stateCount;
+		//curandState_t* states;
+		curandGenerator_t gen;
+		bool initialized;
+
 #endif
 
 	public:

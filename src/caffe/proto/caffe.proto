@@ -448,10 +448,8 @@ message RBMPCDParameter {
 enum MAPMethod {
     CoordinateDescent = 0;
     FreeEnergyGradientDescent = 1;
-    GreedyEnergyOptimization = 2;
-    NegativeFreeEnergyGradientDescent = 3;
-    NegativeGreedyEnergyOptimization = 4;
-    FreeEnergyGradientDescentEta2 = 5;
+    FreeEnergyGradientDescentEta2 = 2;
+    GreedyEnergyOptimization = 3;
 }
 
 message RBMPMParameter {

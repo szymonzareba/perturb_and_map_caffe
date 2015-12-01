@@ -19,8 +19,8 @@ void RBMPM1Layer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 		vector<int> X1SShape(2);
 		X1SShape[0] = this->M_*repTimes;
 		X1SShape[1] = this->K_;
-		X1Chain.Reshape(X1SShape);
-		caffe_rng_uniform(X1Chain.count(), Dtype(0.), Dtype(1.), X1Chain.mutable_cpu_data());
+		X1_chain.Reshape(X1SShape);
+		caffe_rng_uniform(X1_chain.count(), Dtype(0.), Dtype(1.), X1_chain.mutable_cpu_data());
 	}
 }
 

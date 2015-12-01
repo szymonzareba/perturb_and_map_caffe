@@ -5,8 +5,11 @@ namespace caffe {
 
 template <typename Dtype>
 MLGRNG<Dtype>::MLGRNG(){
+	/*
 	stateCount = 0;
 	states = 0;
+	*/
+	initialized = false;
 }
 
 template <typename Dtype>
@@ -14,10 +17,12 @@ MLGRNG<Dtype>::~MLGRNG(){
 	  if(Caffe::mode() == Caffe::GPU)
 	  {
 	  #ifndef CPU_ONLY
+		  /*
 		  if(stateCount > 0)
 		  {
 			  cudaFree(states);
-		  }
+		  }*/
+		  curandDestroyGenerator(this->gen);
 	  #else
 		NO_GPU;
 	  #endif

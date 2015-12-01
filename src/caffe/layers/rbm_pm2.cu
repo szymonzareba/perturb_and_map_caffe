@@ -95,6 +95,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			this->replicate_data_gpu(repTimes, &this->H0, &repH);
 		}
 		break;
+		/*
 		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
 		{
 			this->replicate_data_gpu(repTimes, top[0], &repH);
@@ -104,7 +105,11 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 		{
 			this->replicate_data_gpu(repTimes, &this->H0, &repH);
 		}
-		break;
+		break;*/
+		default:
+		{
+			NOT_IMPLEMENTED;
+		}
 	}
 
 
@@ -332,6 +337,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 				this->sigmoid_gpu(repH.count(), H1S);
 		}
 		break;
+		/*
 		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
 		{
 			X1S = X1.mutable_gpu_data();
@@ -353,6 +359,11 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 				this->sigmoid_gpu(repH.count(), H1S);
 		}
 		break;
+		*/
+		default:
+		{
+			NOT_IMPLEMENTED;
+		}
 	}
 
 	// set gradient scale

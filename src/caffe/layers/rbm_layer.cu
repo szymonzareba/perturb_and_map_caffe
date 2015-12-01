@@ -88,7 +88,7 @@ void RBMLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 		// X = 1 * H * W + 0 * X
 		// bottom_data = 1 * top_data * weights + 0 * bottom_data
 		// [m,k] = 1 * [m,n] * [n,k] + 0 * [m,k]
-		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
 				M_, K_, N_,
 				(Dtype)1., H1SData, W,
 				(Dtype)0., X1SData);

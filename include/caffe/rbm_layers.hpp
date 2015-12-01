@@ -131,10 +131,8 @@ class RBMPMLayer : public RBMLayer<Dtype> {
   enum {
 	  CoordinateDescent,
 	  FreeEnergyGradientDescent,
-	  GreedyEnergyOptimization ,
-	  NegativeFreeEnergyGradientDescent,
-	  NegativeGreedyEnergyOptimization,
-	  FreeEnergyGradientDescentEta2};
+	  FreeEnergyGradientDescentEta2,
+	  GreedyEnergyOptimization};
 
  protected:
   virtual void find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);
@@ -161,7 +159,7 @@ class RBMPM1Layer : public RBMPMLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   bool persistent;
-  Blob<Dtype> X1Chain;
+  Blob<Dtype> X1_chain;
 };
 
 

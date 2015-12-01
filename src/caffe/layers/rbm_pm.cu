@@ -23,18 +23,20 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
 
+	const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
+	const int m = this->M_ * repTimes;
+
 	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
 		case RBMPMLayer::CoordinateDescent:
 		{
 			Dtype* XS = X->mutable_gpu_data();
 			Dtype* HS = H->mutable_gpu_data();
 			const int descentSteps = this->layer_param_.rbm_param().rbm_pm_param().coordinate_descent_param().descent_steps();
-			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
 
 			for(int descent = 0; descent < descentSteps; descent++){
 
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-						this->M_ * repTimes, this->K_, this->N_,
+						m, this->K_, this->N_,
 						(Dtype)1., HS, W->gpu_data(),
 						(Dtype)0., XS);
 
@@ -44,7 +46,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 				CUDA_POST_KERNEL_CHECK;
 
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-						this->M_ * repTimes, this->N_, this->K_,
+						m, this->N_, this->K_,
 						(Dtype)1., XS, W->gpu_data(),
 						(Dtype)0., HS);
 
@@ -59,22 +61,11 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
 			}
 
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., XS, W->gpu_data(),
-					(Dtype)0., HS);
-
-			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
-			this->sigmoid_gpu(H->count(), HS);
-
 		}
 		break;
 		case RBMPMLayer::FreeEnergyGradientDescent:
 		{
 			const int descentSteps = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().descent_steps();
-			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
-
-			const int m = this->M_ * repTimes;
 
 			const Dtype eta0 = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_0();
 			const Dtype etaDecay = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_decay();
@@ -126,29 +117,13 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			// 0.5 sample
 			sample_ge0_5_kernel<Dtype><<<CAFFE_GET_BLOCKS(X->count()), CAFFE_CUDA_NUM_THREADS>>>(X->count(), XS);
 			CUDA_POST_KERNEL_CHECK;
-
-			// no sample
-			// nothing
-
-			// probabilistic sample
-			//this->sample_gpu(X->count(), X->mutable_gpu_data());
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., XS, W->gpu_data(),
-					(Dtype)0., HS);
-
-			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
-			this->sigmoid_gpu(H->count(), HS);
-
 		}
 		break;
 		case RBMPMLayer::FreeEnergyGradientDescentEta2:
 		{
+			NOT_IMPLEMENTED;
+			/*
 			const int descentSteps = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().descent_steps();
-			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
-
-			const int m = this->M_ * repTimes;
 
 			const Dtype eta0 = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_0();
 			const Dtype etaDecay = this->layer_param_.rbm_param().rbm_pm_param().fegd_param().eta_decay();
@@ -204,13 +179,12 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
 			this->sigmoid_gpu(H->count(), HS);
-
+			 */
 		}
 		break;
-		case RBMPMLayer::NegativeGreedyEnergyOptimization:
+		case RBMPMLayer::GreedyEnergyOptimization:
 		{
 			const int steps = this->layer_param_.rbm_param().rbm_pm_param().geo_param().steps();
-			const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
 
 			Dtype* XS = X->mutable_gpu_data();
 			Dtype* HS = H->mutable_gpu_data();
@@ -228,7 +202,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 				// dX
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-						this->M_ * repTimes, this->K_, this->N_,
+						m, this->K_, this->N_,
 						(Dtype)1., HS, W->gpu_data(),
 						(Dtype)0., dXData);
 
@@ -236,7 +210,7 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 
 				// dH
 				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-						this->M_ * repTimes, this->N_, this->K_,
+						m, this->N_, this->K_,
 						(Dtype)1., XS, W->gpu_data(),
 						(Dtype)0., dHData);
 
@@ -258,14 +232,6 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
 					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
 			}
-
-			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., XS, W->gpu_data(),
-					(Dtype)0., HS);
-
-			caffe_gpu_add(H->count(), HS, c->gpu_data(), HS);
-			this->sigmoid_gpu(H->count(), HS);
 		}
 		break;
 		default:
