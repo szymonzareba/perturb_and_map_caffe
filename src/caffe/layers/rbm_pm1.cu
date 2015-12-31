@@ -190,8 +190,10 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			(Dtype)1., H1_data);
 
 	this->sigmoid_gpu(H1.count(), H1_data);
-	///
 
+	///
+	//this->sample_gpu(H1.count(), H1_data);
+	///
 
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X1.count(), X1.gpu_data())) LOG(INFO) << "X1 not finite" << std::endl;
 		if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H1.count(), H1.gpu_data())) LOG(INFO) << "H1 not finite" << std::endl;

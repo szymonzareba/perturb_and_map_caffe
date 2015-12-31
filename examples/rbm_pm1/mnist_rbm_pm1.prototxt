@@ -70,7 +70,7 @@ layer {
   }
   
   rbm_param{
-    num_hidden: 20
+    num_hidden: 500
     llAprox: REC
     w_filler {
       type: "gaussian"
@@ -88,17 +88,17 @@ layer {
       std: 0.05
     }
     rbm_pm_param {
-      map_method : NegativeGreedyEnergyOptimization
+      map_method : GreedyEnergyOptimization
       batch_repeats : 10
       geo_param {
-       steps : 10
+       steps : 25
       }
       fegd_param {
        descent_steps : 50
        eta_0 : 1
-       eta_decay : 0.1   
-      }      
-    }        
+       eta_decay : 0.1
+      }
+    }
   }
 }
 

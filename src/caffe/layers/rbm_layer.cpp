@@ -26,6 +26,7 @@ void RBMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LOG(INFO) << "k : " << K_ << std::endl;
   LOG(INFO) << "m : " << M_ << std::endl;
   LOG(INFO) << "n : " << N_ << std::endl;
+
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
     LOG(INFO) << "Skipping parameter initialization";

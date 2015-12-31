@@ -392,6 +392,7 @@ message LayerParameter {
   optional RBMReturnParameter rbm_return_param = 302;
   optional BinarizationParameter bin_param = 303;
   optional BunchOfNeuronsParameter bunch_param = 304;
+  optional DRBMParameter drbm_param = 305;
 }
 
 
@@ -399,16 +400,29 @@ message LayerParameter {
 ///// MLG Protobuf /////
 ////////////////////////
 
+//////////////////////
+// Bunch of Neurons //
+//////////////////////
+
 message BunchOfNeuronsParameter {
   optional double bunch_a = 1 [default = 1];
   optional double bunch_b = 2 [default = 1];
 }
 
 
+//////////////////
+// Binarization //
+//////////////////
+
 message BinarizationParameter {
   optional bool work = 1 [default = false];
   optional float threshold = 2 [default = 0.5];
 }
+
+
+/////////
+// RBM //
+/////////
 
 message RBMReturnParameter {
 
@@ -493,7 +507,36 @@ message GreedyEnergyOptimizationMAPParameter {
 	optional uint32 steps = 1 [default = 1];
 }
 
+//////////
+// DRBM //
+//////////
 
+message DRBMParameter {
+	repeated uint32 num_hidden = 1; // The number of hidden units for the layer
+	repeated FillerParameter bias_filler = 2; // The filler for the bias
+	repeated FillerParameter weight_filler = 3; // The filler for the weights
+	optional int32 axis = 4 [default = 1];
+	optional int32 mf_steps = 7 [default = 1];
+	
+	optional DRBMMeanFieldParameter drbm_mf_param = 5;
+	optional DRBMPMParameter drbm_pm_param = 6;
+	
+}
+
+message DRBMMeanFieldParameter {
+	optional int32 steps = 1 [default = 1];
+}
+
+message DRBMPMParameter {
+	optional MAPMethod map_method = 1 [default = GreedyEnergyOptimization];
+	optional DRBMPM1Parameter drbm_pm1_param = 2; 
+	
+	optional GreedyEnergyOptimizationMAPParameter geo_param = 3;
+}
+
+message DRBMPM1Parameter {
+
+}
 
 
 ////////////////////////////
