@@ -532,6 +532,7 @@ message DRBMPMParameter {
 	optional DRBMPM1Parameter drbm_pm1_param = 2; 
 	
 	optional GreedyEnergyOptimizationMAPParameter geo_param = 3;
+	optional CoordinateDescentMAPParameter cd_param = 4;
 }
 
 message DRBMPM1Parameter {

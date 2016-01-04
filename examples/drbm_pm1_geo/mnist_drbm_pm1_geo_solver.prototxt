@@ -1,4 +1,4 @@
-net: "examples/drbm_mf/mnist_drbm_mf.prototxt"
+net: "examples/drbm_pm1_geo/mnist_drbm_pm1_geo.prototxt"
 test_iter: 100
 test_interval: 500
 test_compute_loss: true
@@ -9,7 +9,7 @@ display: 100
 max_iter: 500000
 weight_decay: 0.0002
 snapshot: 1000
-snapshot_prefix: "examples/drbm_mf/mnist_drbm_mf"
+snapshot_prefix: "examples/drbm_pm1_geo/mnist_drbm_pm1_geo"
 momentum: 0.9
 solver_type:SGD
 solver_mode: GPU

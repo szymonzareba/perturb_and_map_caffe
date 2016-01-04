@@ -1,0 +1,125 @@
+name: "mnist_drbm_pm1_geo"
+layer {
+	name: "data"
+	type: "Data"
+	top: "data"
+	include {
+		phase: TRAIN
+	}
+	transform_param {
+		scale: 0.0039215684
+	}
+	data_param {
+		source: "examples/drbm_pm1_geo/mnist_train_lmdb"
+		batch_size: 100
+		backend: LMDB
+  	}
+}
+
+layer {
+	name: "data"
+	type: "Data"
+	top: "data"
+	include {
+		phase: TEST
+	}
+	transform_param {
+		scale: 0.0039215684
+	}
+  	data_param {
+		source: "examples/drbm_pm1_geo/mnist_test_lmdb"
+		batch_size: 100
+		backend: LMDB
+	}
+}
+
+layer {
+	name: "bin1"
+	type: "Binarization"
+	bottom: "data"
+	top: "bin"
+	bin_param{
+		work: true
+	}
+}
+
+layer {
+	name: "drbm1"
+	type: "DRBMPM1"
+	bottom: "bin"
+	top : "drbm1HOut"
+	top : "drbm1HIn"
+	top : "drbm1loss"
+	
+	loss_weight : 0
+	loss_weight : 0
+	loss_weight : 1
+	
+	param {
+		lr_mult: 1
+		decay_mult: 0
+	}
+	param {
+		lr_mult: 1
+		decay_mult: 1
+	}
+	param {
+		lr_mult: 1
+		decay_mult: 0
+	}
+	param {
+		lr_mult: 1
+		decay_mult: 1
+	}
+	param {
+		lr_mult: 1
+		decay_mult: 0
+	}
+	
+	drbm_param{
+		num_hidden: 500
+		num_hidden: 1000
+	
+		mf_steps: 10
+		
+		bias_filler {
+			type: "gaussian"
+			mean: 0
+			std: 0.05
+		}
+	    	weight_filler {
+			type: "gaussian"
+			mean: 0
+			std: 0.05
+		}
+		bias_filler {
+			type: "constant"
+			value: -1
+		}
+		weight_filler {
+			type: "gaussian"
+			mean: 0
+			std: 0.05
+		}
+		bias_filler {
+			type: "constant"
+			value: -1
+		}
+    
+		drbm_pm_param {
+			map_method: GreedyEnergyOptimization
+			geo_param {
+				steps: 10
+			}
+			drbm_pm1_param {
+			}
+		}
+	}
+}
+
+layer {
+	name: "rbmreturn"
+	type: "RBMReturn"
+	bottom: "drbm1HOut"
+	bottom: "drbm1HIn"
+}

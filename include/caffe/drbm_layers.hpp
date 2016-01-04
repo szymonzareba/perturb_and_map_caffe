@@ -83,7 +83,16 @@ class DRBMPMLayer : public DRBMLayer<Dtype> {
  public:
   explicit DRBMPMLayer(const LayerParameter& param)
       : DRBMLayer<Dtype>(param) {}
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+        const vector<Blob<Dtype>*>& top);
   virtual inline const char* type() const { return "DRBM PM"; }
+  virtual ~DRBMPMLayer();
+
+  enum {
+  	  CoordinateDescent,
+  	  FreeEnergyGradientDescent,
+  	  FreeEnergyGradientDescentEta2,
+  	  GreedyEnergyOptimization};
 
  protected:
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
@@ -94,6 +103,10 @@ class DRBMPMLayer : public DRBMLayer<Dtype> {
   virtual void optimizeEnergy_gpu();
   virtual void generatePerturbations_cpu() = 0;
   virtual void generatePerturbations_gpu() = 0;
+
+  vector<Blob<Dtype>*> pertBiases;
+  vector<Blob<Dtype>*> pertWeights;
+
 };
 
 template <typename Dtype>
