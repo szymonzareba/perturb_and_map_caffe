@@ -88,8 +88,13 @@ layer {
       std: 0.05
     }
     rbm_pm_param {
-      map_method : GreedyEnergyOptimization
-      batch_repeats : 10
+      # map_method : CoordinateDescent
+      map_method : FreeEnergyGradientDescent
+      # map_method : GreedyEnergyOptimization
+      batch_repeats : 1
+      coordinate_descent_param {
+       descent_steps : 25
+      }      
       geo_param {
        steps : 25
       }

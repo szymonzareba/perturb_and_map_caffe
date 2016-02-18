@@ -81,7 +81,7 @@ llAprox: REC
       std: 0.05
     }
 rbm_cd_param {
-gibbs_steps :1
+gibbs_steps :25
 }
 }
 }

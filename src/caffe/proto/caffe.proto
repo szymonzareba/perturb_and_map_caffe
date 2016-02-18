@@ -487,6 +487,8 @@ message RBMPM1Parameter {
 
 enum RBMPM2WPerturbation {
     Random = 0;
+    ExpProb = 1;
+    AbsExpProb = 2;
 }
 
 message RBMPM2Parameter {

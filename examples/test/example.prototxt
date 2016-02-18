@@ -10,7 +10,7 @@ layer {
 }
 layer {
   name: "rbm1"
-  type: "RBMCD"
+  type: "RBMPM2"
   bottom: "data"
   top : "rbm1HOut"
   top : "rbm1HIn"  
@@ -49,9 +49,16 @@ layer {
       path:"/home/szymon.zareba/storage/RBM-Caffe/inits/example/5/c.txt"
     }
     
-   rbm_cd_param {
-    gibbs_steps:1
-   }
+	rbm_pm_param {
+      map_method : CoordinateDescent
+      batch_repeats : 1
+      coordinate_descent_param {
+       descent_steps : 1
+      }       
+      rbm_pm2_param {
+       w_pert_param : ExpProb
+      }      
+    }   
   }
 }
 

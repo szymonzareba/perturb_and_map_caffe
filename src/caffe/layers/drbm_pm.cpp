@@ -12,9 +12,12 @@ void DRBMPMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 	      const vector<Blob<Dtype>*>& top) {
 	DRBMLayer<Dtype>::LayerSetUp(bottom, top);
 
+	vector<int> shape;
 	for(int i = 0; i < this->biases.size(); i++){
-		Blob<Dtype>* newBias = new Blob<Dtype>();
-		newBias->ReshapeLike(*this->biases[i]);
+		shape[0] = this->biases[i]->shape()[0];
+		shape[1] = this->M_;
+
+		Blob<Dtype>* newBias = new Blob<Dtype>(shape);
 
 		pertBiases.push_back(newBias);
 	}

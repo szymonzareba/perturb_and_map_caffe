@@ -63,19 +63,19 @@ layer {
     llAprox: REC
     w_filler {
       type: "file"
-      path: "examples/rbm_init/500/w.txt"
+      path: "examples/rbm_pm2/500/w.txt"
     }
     b_filler {
       type: "file"
-      path: "examples/rbm_init/500/b.txt"
+      path: "examples/rbm_pm2/500/b.txt"
     }
     c_filler {
       type: "file"
-      path: "examples/rbm_init/500/c.txt"
+      path: "examples/rbm_pm2/500/c.txt"
     }
     rbm_pm_param {
-      map_method : FreeEnergyGradientDescent
-      batch_repeats : 10
+      map_method : CoordinateDescent
+      batch_repeats : 1
       coordinate_descent_param {
        descent_steps : 1
       }
@@ -85,7 +85,7 @@ layer {
        eta_decay : 0       
       }         
       rbm_pm2_param {
-       w_pert_param : Random
+       w_pert_param : ExpProb
       }      
     }        
   }

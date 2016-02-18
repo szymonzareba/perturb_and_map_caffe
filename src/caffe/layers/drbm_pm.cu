@@ -34,11 +34,13 @@ void DRBMPMLayer<Dtype>::optimizeEnergy_gpu(){
 				for(int layer_num = 1; layer_num < this->probs_1.size(); layer_num += 2)
 				{
 					// clear previous and add bias
+					caffe_copy(this->pertBiases[layer_num]->count(), this->pertBiases[layer_num]->gpu_data(), this->probs_1[layer_num]->mutable_gpu_data());
+/*
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 							this->M_, this->layer_sizes[layer_num], 1,
 							(Dtype)1., this->ones_m.gpu_data(), this->pertBiases[layer_num]->gpu_data(),
 							(Dtype)0., this->probs_1[layer_num]->mutable_gpu_data());
-
+*/
 					// multiply and add previous layer
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 							this->M_, this->layer_sizes[layer_num], this->layer_sizes[layer_num - 1],
@@ -63,10 +65,13 @@ void DRBMPMLayer<Dtype>::optimizeEnergy_gpu(){
 				for(int layer_num = 2; layer_num < this->probs_1.size(); layer_num += 2)
 				{
 					// clear previous and add bias
+/*
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 							this->M_, this->layer_sizes[layer_num], 1,
 							(Dtype)1., this->ones_m.gpu_data(), this->pertBiases[layer_num]->gpu_data(),
 							(Dtype)0., this->probs_1[layer_num]->mutable_gpu_data());
+*/
+					caffe_copy(this->pertBiases[layer_num]->count(), this->pertBiases[layer_num]->gpu_data(), this->probs_1[layer_num]->mutable_gpu_data());
 
 					// multiply and add previous layer
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
@@ -104,10 +109,13 @@ void DRBMPMLayer<Dtype>::optimizeEnergy_gpu(){
 				for(int layer_num = 1; layer_num < this->probs_1.size(); layer_num += 2)
 				{
 					// clear previous and add bias
+/*
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 							this->M_, this->layer_sizes[layer_num], 1,
 							(Dtype)1., this->ones_m.gpu_data(), this->pertBiases[layer_num]->gpu_data(),
 							(Dtype)0., this->probs_1[layer_num]->mutable_gpu_data());
+*/
+					caffe_copy(this->pertBiases[layer_num]->count(), this->pertBiases[layer_num]->gpu_data(), this->probs_1[layer_num]->mutable_gpu_data());
 
 					// multiply and add previous layer
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
@@ -135,10 +143,13 @@ void DRBMPMLayer<Dtype>::optimizeEnergy_gpu(){
 				for(int layer_num = 2; layer_num < this->probs_1.size(); layer_num += 2)
 				{
 					// clear previous and add bias
+/*
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 							this->M_, this->layer_sizes[layer_num], 1,
 							(Dtype)1., this->ones_m.gpu_data(), this->pertBiases[layer_num]->gpu_data(),
 							(Dtype)0., this->probs_1[layer_num]->mutable_gpu_data());
+*/
+					caffe_copy(this->pertBiases[layer_num]->count(), this->pertBiases[layer_num]->gpu_data(), this->probs_1[layer_num]->mutable_gpu_data());
 
 					// multiply and add previous layer
 					caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,

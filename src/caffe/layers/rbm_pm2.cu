@@ -30,9 +30,50 @@ __global__ void fill_W_K_g_N_kernel(const int wSize, const int N, const int K, c
 }
 
 template <typename Dtype>
+__global__ void sample_distribution(const int n, const int randomID, const Dtype* random, const Dtype* cumulative, Dtype* mask){
+	CUDA_KERNEL_LOOP(index,n){
+		Dtype min;
+		Dtype max;
+
+		if (index == 0){
+			min = 0;
+		} else {
+			min = cumulative[index -1];
+		}
+
+		if(index == n-1){
+			max = 1;
+		} else {
+			max = cumulative[index];
+		}
+
+		if (min < random[randomID] && random[randomID] <= max) {
+			mask[index] = 1.0;
+		} else {
+			mask[index] = 0.0;
+		}
+	}
+}
+
+template <typename Dtype>
+__global__ void substitute_column(const int n, const int columnIndex, const int columnSize, const Dtype* toCopy, Dtype* dst){
+	CUDA_KERNEL_LOOP(index,n){
+		dst[columnIndex*columnSize + index] = toCopy[index];
+	}
+}
+
+template <typename Dtype>
+__global__ void divide_elementwise_kernel(const int n, const Dtype* scalar, Dtype* dst){
+	CUDA_KERNEL_LOOP(index,n){
+		dst[index] = dst[index] / scalar[0];
+	}
+}
+
+template <typename Dtype>
 void RBMPM2Layer<Dtype>::find_w_mask_gpu(Blob<Dtype>* W){
 
 	switch(this->layer_param_.rbm_param().rbm_pm_param().rbm_pm2_param().w_pert_param()){
+
 	case RBMPM2Layer::Random:
 	{
 		int* range;
@@ -57,6 +98,261 @@ void RBMPM2Layer<Dtype>::find_w_mask_gpu(Blob<Dtype>* W){
 		cudaFree(range);
 	}
 	break;
+	case RBMPM2Layer::ExpProb:
+	{
+		vector<int> shape(2);
+
+		// tmp b - bias for observable
+		shape[0] = this->K_;
+		shape[1] = 1;
+		Blob<Dtype> mb(shape);
+		caffe_gpu_set(mb.count(), (Dtype)1.0, mb.mutable_gpu_data());
+
+		// tmp c - bias for latent
+		shape[0] = this->N_;
+		shape[1] = 1;
+		Blob<Dtype> mc(shape);
+		caffe_gpu_set(mc.count(), (Dtype)1.0, mc.mutable_gpu_data());
+
+		// tmp maxk W
+		Blob<Dtype> maskW(this->blobs_[0]->shape());
+
+		// tmp exp(W)
+		Blob<Dtype> probsW(this->blobs_[0]->shape());
+		caffe_gpu_exp(this->blobs_[0]->count(), this->blobs_[0]->gpu_data(), probsW.mutable_gpu_data());
+
+		// ones_k_1
+		shape[0] = this->K_;
+		shape[1] = 1;
+		Blob<Dtype> ones_k_1(shape);
+		caffe_gpu_set(ones_k_1.count(), (Dtype)1.0, ones_k_1.mutable_gpu_data());
+
+		// ones_n_1
+		shape[0] = this->N_;
+		shape[1] = 1;
+		Blob<Dtype> ones_n_1(shape);
+		caffe_gpu_set(ones_n_1.count(), (Dtype)1.0, ones_n_1.mutable_gpu_data());
+
+		// tmp for sum of one column/row
+		shape[0] = 1;
+		shape[1] = 1;
+		Blob<Dtype> sumProbsW(shape);
+
+		// tmp for mask updates
+		Blob<Dtype> amc(mc.shape());
+		Blob<Dtype> amb(mb.shape());
+
+		// latent < observable
+		if(this->N_ < this->K_){
+			// tmp for one column/row of probsW to analyse in current loop
+			// tmp for cumulative sum of selected column/row
+			shape[0] = this->K_;
+			shape[1] = 1;
+			Blob<Dtype> subProbsW(shape);
+			Blob<Dtype> cumProbsW(shape);
+
+			// tmp for random variables
+			// tmp for order
+			shape[0] = this->N_;
+			shape[1] = 1;
+			Blob<Dtype> randoms(shape);
+			MLGRNG<Dtype>::getInstance().mlg_gpu_uniform(randoms.count(), randoms.mutable_gpu_data());
+
+
+			int* order = new int[this->N_];
+			MLGRNG<Dtype>::getInstance().mlg_cpu_permutation(this->N_, order);
+
+
+			for(int i=0; i < this->N_; i++)
+			{
+				// get current column/row id
+				int indx = order[i];
+
+				// set current mask
+				caffe_gpu_set(amc.count(), (Dtype)0.0, amc.mutable_gpu_data());
+				amc.mutable_cpu_data()[indx] = 1;
+
+				caffe_gpu_set(amb.count(), (Dtype)0.0, amb.mutable_gpu_data());
+
+				// put zeros where connection is already made
+				// repmat mb to maskW
+				// [N,K] = [N,1] x [1,K]
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+						this->N_, this->K_, 1,
+						(Dtype)1., ones_n_1.gpu_data(), mb.gpu_data(),
+						(Dtype)0., maskW.mutable_gpu_data());
+
+				// inplace multiply probW = probW .* maskW
+				caffe_gpu_mul(probsW.count(), probsW.gpu_data(), maskW.gpu_data(), probsW.mutable_gpu_data());
+
+				// extract current column/row from probsW
+				// [K,1] = [K,N] x [N,1]
+				caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
+						this->K_, 1, this->N_,
+						(Dtype)1., probsW.gpu_data(), amc.gpu_data(),
+						(Dtype)0., subProbsW.mutable_gpu_data());
+
+				/*
+				cumulative_sum_kernel<<<CAFFE_GET_BLOCKS(subProbsW.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						subProbsW.count(), subProbsW.gpu_data(), cumProbsW.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+				*/
+
+				efficientScan(subProbsW.count(), subProbsW.mutable_gpu_data(), cumProbsW.mutable_gpu_data());
+
+				// [1,1] = [1,K] x [K,1]
+				caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
+						1, 1, this->K_,
+						(Dtype)1., subProbsW.gpu_data(), ones_k_1.gpu_data(),
+						(Dtype)0., sumProbsW.mutable_gpu_data());
+
+				divide_elementwise_kernel<Dtype><<<CAFFE_GET_BLOCKS(cumProbsW.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						cumProbsW.count(), sumProbsW.gpu_data(), cumProbsW.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				sample_distribution<Dtype><<<CAFFE_GET_BLOCKS(cumProbsW.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						cumProbsW.count(), i, randoms.gpu_data(), cumProbsW.gpu_data(), amb.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				substitute_column<Dtype><<<CAFFE_GET_BLOCKS(amb.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						amb.count(), indx, this->K_, amb.gpu_data(), W->mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				caffe_gpu_sub(mb.count(), mb.gpu_data(), amb.gpu_data(), mb.mutable_gpu_data());
+				caffe_gpu_sub(mc.count(), mc.gpu_data(), amc.gpu_data(), mc.mutable_gpu_data());
+			}
+			delete order;
+		} else {
+			NOT_IMPLEMENTED;
+		}
+	}
+	break;
+	case RBMPM2Layer::AbsExpProb:
+	{
+		vector<int> shape(2);
+
+		// tmp b - bias for observable
+		shape[0] = this->K_;
+		shape[1] = 1;
+		Blob<Dtype> mb(shape);
+		caffe_gpu_set(mb.count(), (Dtype)1.0, mb.mutable_gpu_data());
+
+		// tmp c - bias for latent
+		shape[0] = this->N_;
+		shape[1] = 1;
+		Blob<Dtype> mc(shape);
+		caffe_gpu_set(mc.count(), (Dtype)1.0, mc.mutable_gpu_data());
+
+		// tmp maxk W
+		Blob<Dtype> maskW(this->blobs_[0]->shape());
+
+		// tmp exp(W)
+		Blob<Dtype> probsW(this->blobs_[0]->shape());
+		caffe_gpu_abs(this->blobs_[0]->count(), this->blobs_[0]->gpu_data(), probsW.mutable_gpu_data());
+		caffe_gpu_exp(this->blobs_[0]->count(), probsW.gpu_data(), probsW.mutable_gpu_data());
+
+		// ones_k_1
+		shape[0] = this->K_;
+		shape[1] = 1;
+		Blob<Dtype> ones_k_1(shape);
+		caffe_gpu_set(ones_k_1.count(), (Dtype)1.0, ones_k_1.mutable_gpu_data());
+
+		// ones_n_1
+		shape[0] = this->N_;
+		shape[1] = 1;
+		Blob<Dtype> ones_n_1(shape);
+		caffe_gpu_set(ones_n_1.count(), (Dtype)1.0, ones_n_1.mutable_gpu_data());
+
+		// tmp for sum of one column/row
+		shape[0] = 1;
+		shape[1] = 1;
+		Blob<Dtype> sumProbsW(shape);
+
+		// tmp for mask updates
+		Blob<Dtype> amc(mc.shape());
+		Blob<Dtype> amb(mb.shape());
+
+		// latent < observable
+		if(this->N_ < this->K_){
+			// tmp for one column/row of probsW to analyse in current loop
+			// tmp for cumulative sum of selected column/row
+			shape[0] = this->K_;
+			shape[1] = 1;
+			Blob<Dtype> subProbsW(shape);
+			Blob<Dtype> cumProbsW(shape);
+
+			// tmp for random variables
+			// tmp for order
+			shape[0] = this->N_;
+			shape[1] = 1;
+			Blob<Dtype> randoms(shape);
+			MLGRNG<Dtype>::getInstance().mlg_gpu_uniform(randoms.count(), randoms.mutable_gpu_data());
+
+
+			int* order = new int[this->N_];
+			MLGRNG<Dtype>::getInstance().mlg_cpu_permutation(this->N_, order);
+
+
+			for(int i=0; i < this->N_; i++)
+			{
+				// get current column/row id
+				int indx = order[i];
+
+				// set current mask
+				caffe_gpu_set(amc.count(), (Dtype)0.0, amc.mutable_gpu_data());
+				amc.mutable_cpu_data()[indx] = 1;
+
+				caffe_gpu_set(amb.count(), (Dtype)0.0, amb.mutable_gpu_data());
+
+				// put zeros where connection is already made
+				// repmat mb to maskW
+				// [N,K] = [N,1] x [1,K]
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+						this->N_, this->K_, 1,
+						(Dtype)1., ones_n_1.gpu_data(), mb.gpu_data(),
+						(Dtype)0., maskW.mutable_gpu_data());
+
+				// inplace multiply probW = probW .* maskW
+				caffe_gpu_mul(probsW.count(), probsW.gpu_data(), maskW.gpu_data(), probsW.mutable_gpu_data());
+
+				// extract current column/row from probsW
+				// [K,1] = [K,N] x [N,1]
+				caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
+						this->K_, 1, this->N_,
+						(Dtype)1., probsW.gpu_data(), amc.gpu_data(),
+						(Dtype)0., subProbsW.mutable_gpu_data());
+
+				cumulative_sum_kernel<<<CAFFE_GET_BLOCKS(subProbsW.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						subProbsW.count(), subProbsW.gpu_data(), cumProbsW.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				// [1,1] = [1,K] x [K,1]
+				caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
+						1, 1, this->K_,
+						(Dtype)1., subProbsW.gpu_data(), ones_k_1.gpu_data(),
+						(Dtype)0., sumProbsW.mutable_gpu_data());
+
+				divide_elementwise_kernel<Dtype><<<CAFFE_GET_BLOCKS(cumProbsW.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						cumProbsW.count(), sumProbsW.gpu_data(), cumProbsW.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				sample_distribution<Dtype><<<CAFFE_GET_BLOCKS(cumProbsW.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						cumProbsW.count(), i, randoms.gpu_data(), cumProbsW.gpu_data(), amb.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				substitute_column<Dtype><<<CAFFE_GET_BLOCKS(amb.count()), CAFFE_CUDA_NUM_THREADS>>>(
+						amb.count(), indx, this->K_, amb.gpu_data(), W->mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				caffe_gpu_sub(mb.count(), mb.gpu_data(), amb.gpu_data(), mb.mutable_gpu_data());
+				caffe_gpu_sub(mc.count(), mc.gpu_data(), amc.gpu_data(), mc.mutable_gpu_data());
+			}
+			delete order;
+		} else {
+			NOT_IMPLEMENTED;
+		}
+	}
+	break;
 	default:
 		LOG(INFO) << "Perturbation not defined" << std::endl;
 	}
@@ -71,97 +367,81 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	const int repTimes = this->layer_param_.rbm_param().rbm_pm_param().batch_repeats();
 	const Dtype pertStr = this->layer_param_.rbm_param().rbm_pm_param().pert_str();
 
+	Blob<Dtype> X0;
+	Blob<Dtype> H0;
+	
+	this->replicate_data_gpu(repTimes, bottom[0], &X0);
 
-	// replicate data
-	Blob<Dtype> repX;
-	this->replicate_data_gpu(repTimes, bottom[0], &repX);
-
-	// replicate hidden
-	Blob<Dtype> repH;
-	//replicate_data_gpu(repTimes, top[0], &repH);
 	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
 		case RBMPMLayer<Dtype>::CoordinateDescent:
 		{
-			this->replicate_data_gpu(repTimes, top[0], &repH);
-		}
-		break;
-		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
-		{
-			this->replicate_data_gpu(repTimes, top[0], &repH);
+			this->replicate_data_gpu(repTimes, &this->H0, &H0);
+			this->sample_gpu(H0.count(), H0.mutable_gpu_data());
 		}
 		break;
 		case RBMPMLayer<Dtype>::FreeEnergyGradientDescent:
 		{
-			this->replicate_data_gpu(repTimes, &this->H0, &repH);
+			this->replicate_data_gpu(repTimes, &this->H0, &H0);
 		}
 		break;
-		/*
-		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
+		case RBMPMLayer<Dtype>::FreeEnergyGradientDescentEta2:
 		{
-			this->replicate_data_gpu(repTimes, top[0], &repH);
+			this->replicate_data_gpu(repTimes, &this->H0, &H0);
 		}
 		break;
-		case RBMPMLayer<Dtype>::NegativeFreeEnergyGradientDescent:
+		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
 		{
-			this->replicate_data_gpu(repTimes, &this->H0, &repH);
+			this->replicate_data_gpu(repTimes, &this->H0, &H0);
+			this->sample_gpu(H0.count(), H0.mutable_gpu_data());
 		}
-		break;*/
+		break;
 		default:
 		{
 			NOT_IMPLEMENTED;
 		}
 	}
 
-
-	vector<int> shape_vector(2);
-
-
-
 	//create ones
-	shape_vector[0] = this->M_ * repTimes;
-	shape_vector[1] = 1;
+	vector<int> ones_m_shape(2);
+	ones_m_shape[0] = this->M_ * repTimes;
+	ones_m_shape[1] = 1;
 
-	Blob<Dtype> ones_m_rep;
-	ones_m_rep.Reshape(shape_vector);
-	caffe_gpu_set(ones_m_rep.count(), Dtype(1), ones_m_rep.mutable_gpu_data());
-
-
+	Blob<Dtype> ones_m_1;
+	ones_m_1.Reshape(ones_m_shape);
+	caffe_gpu_set(ones_m_1.count(), (Dtype)1., ones_m_1.mutable_gpu_data());
 
 	//create tmp for parameters
-	// tmp for b bias
-	shape_vector[0] = this->M_ * repTimes;
-	shape_vector[1] = this->K_;
+	vector<int> bias_shape(2);
+
+	bias_shape[0] = this->M_ * repTimes;
+	bias_shape[1] = this->K_;
 
 	Blob<Dtype> bTmp;
-	bTmp.Reshape( shape_vector );
-
+	bTmp.Reshape( bias_shape );
+	
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 			this->M_ * repTimes, this->K_, 1,
-			(Dtype)1., ones_m_rep.gpu_data(), this->blobs_[1]->gpu_data(),
+			(Dtype)1., ones_m_1.gpu_data(), this->blobs_[1]->gpu_data(),
 			(Dtype)0., bTmp.mutable_gpu_data());
 
+    bias_shape[0] = this->M_ * repTimes;
+    bias_shape[1] = this->N_;
 
-
-	// tmp for c bias
-	shape_vector[0] = this->M_ * repTimes;
-	shape_vector[1] = this->N_;
 
 	Blob<Dtype> cTmp;
-	cTmp.Reshape( shape_vector );
+	cTmp.Reshape( bias_shape );
 
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 			this->M_ * repTimes, this->N_, 1,
-			(Dtype)1., ones_m_rep.gpu_data(), this->blobs_[2]->gpu_data(),
+			(Dtype)1., ones_m_1.gpu_data(), this->blobs_[2]->gpu_data(),
 			(Dtype)0., cTmp.mutable_gpu_data());
 
 
-
-	// tmp for W params
 	Blob<Dtype> wTmp;
 	wTmp.Reshape(this->blobs_[0]->shape());
 	caffe_copy(wTmp.count(), this->blobs_[0]->gpu_data(), wTmp.mutable_gpu_data());
 
-
+	
 
 	// generate perturbation masks
 	// mask for W
@@ -170,13 +450,12 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	caffe_gpu_set(wMask.count(), (Dtype) 0., wMask.mutable_gpu_data());
 	find_w_mask_gpu(&wMask);
 
-
-
 	// mask for b
 	Blob<Dtype> bMask;
 	bMask.Reshape(this->blobs_[1]->shape());
 	caffe_gpu_set(bMask.count(), (Dtype) 0., bMask.mutable_gpu_data());
 
+	vector<int> shape_vector(2);
 	shape_vector[0] = this->N_;
 	shape_vector[1] = 1;
 
@@ -200,7 +479,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 			this->M_ * repTimes, this->K_, 1,
-			(Dtype)1., ones_m_rep.gpu_data(), bMask.gpu_data(),
+			(Dtype)1., ones_m_1.gpu_data(), bMask.gpu_data(),
 			(Dtype)0., bMaskRep.mutable_gpu_data());
 
 
@@ -233,7 +512,7 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 
 	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
 			this->M_ * repTimes, this->N_, 1,
-			(Dtype)1., ones_m_rep.gpu_data(), cMask.gpu_data(),
+			(Dtype)1., ones_m_1.gpu_data(), cMask.gpu_data(),
 			(Dtype)0., cMaskRep.mutable_gpu_data());
 
 
@@ -287,83 +566,54 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	CUDA_POST_KERNEL_CHECK;
 
 
-
-	// find MAP
 	Blob<Dtype> X1;
-	X1.ReshapeLike(repX);
-
 	Blob<Dtype> H1;
-	H1.ReshapeLike(repH);
 
-	const Dtype* X0S = repX.gpu_data();
-	const Dtype* H0S = repH.gpu_data();
-	Dtype* X1S = X1.mutable_gpu_data();
-	Dtype* H1S = H1.mutable_gpu_data();
+	X1.ReshapeLike(X0);
+	H1.ReshapeLike(H0);
 
-	caffe_copy(repX.count(), X0S, X1S);
-	caffe_copy(repH.count(), H0S, H1S);
+	const Dtype* X0_data = X0.gpu_data();
+	const Dtype* H0_data = H0.gpu_data();
+
+	Dtype* X1_data = X1.mutable_gpu_data();
+	Dtype* H1_data = H1.mutable_gpu_data();
+
+	if(this->persistent){
+		// init from chain
+		caffe_copy(this->X1_chain.count(), X1_chain.gpu_data(), X1_data);
+	}
+	else{
+		// init from data
+		caffe_copy(X0.count(), X0_data, X1_data);
+	}
+
+	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+			this->M_ * repTimes, this->N_, this->K_,
+			(Dtype)1., X1_data, this->blobs_[0]->gpu_data(),
+			(Dtype)0., H1_data);
+
+	caffe_gpu_add(cTmp.count(), H1_data, cTmp.gpu_data(), H1_data);
+	this->sigmoid_gpu(H1.count(), H1_data);
 
 	this->find_map_gpu(&X1, &H1, &bTmp, &cTmp, &wTmp);
 
-	X1S = X1.mutable_gpu_data();
-	H1S = H1.mutable_gpu_data();
+	/// Recalculate expectation H1 | X1
+	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+			this->M_ * repTimes, this->N_, this->K_,
+			(Dtype)1., X1_data, this->blobs_[0]->gpu_data(),
+			(Dtype)0., H1_data);
 
+	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+			this->M_ * repTimes, this->N_, 1,
+			(Dtype)1., ones_m_1.gpu_data(), this->blobs_[2]->gpu_data(),
+			(Dtype)1., H1_data);
 
-	switch(this->layer_param_.rbm_param().rbm_pm_param().map_method()){
-		case RBMPMLayer<Dtype>::CoordinateDescent:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-		}
-		break;
-		case RBMPMLayer<Dtype>::GreedyEnergyOptimization:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-		}
-		break;
-		case RBMPMLayer<Dtype>::FreeEnergyGradientDescent:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
-					(Dtype)0., H1S);
-				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, 1,
-					(Dtype)1., ones_m_rep.gpu_data(), this->blobs_[2]->gpu_data(),
-					(Dtype)1., H1S);
-				this->sigmoid_gpu(repH.count(), H1S);
-		}
-		break;
-		/*
-		case RBMPMLayer<Dtype>::NegativeGreedyEnergyOptimization:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-		}
-		break;
-		case RBMPMLayer<Dtype>::NegativeFreeEnergyGradientDescent:
-		{
-			X1S = X1.mutable_gpu_data();
-			H1S = H1.mutable_gpu_data();
-				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, this->K_,
-					(Dtype)1., X1S, this->blobs_[0]->gpu_data(),
-					(Dtype)0., H1S);
-				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
-					this->M_ * repTimes, this->N_, 1,
-					(Dtype)1., ones_m_rep.gpu_data(), this->blobs_[2]->gpu_data(),
-					(Dtype)1., H1S);
-				this->sigmoid_gpu(repH.count(), H1S);
-		}
-		break;
-		*/
-		default:
-		{
-			NOT_IMPLEMENTED;
-		}
+	this->sigmoid_gpu(H1.count(), H1_data);
+
+	if(this->persistent)
+	{
+		// save to chain
+		caffe_copy(this->X1_chain.count(), X1_data, X1_chain.mutable_gpu_data());
 	}
 
 	// set gradient scale
@@ -376,12 +626,12 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
     			this->N_, this->K_, this->M_ * repTimes,
-    			(Dtype)1., H0S, X0S,
+    			(Dtype)1., H0_data, X0_data,
     			(Dtype)0., tmp1.mutable_gpu_data());
 
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
     			this->N_, this->K_, this->M_ * repTimes,
-    			(Dtype)1., H1S, X1S,
+    			(Dtype)1., H1_data, X1_data,
     			(Dtype)0., tmp2.mutable_gpu_data());
 
     	caffe_gpu_sub(tmp1.count(), tmp1.gpu_data(), tmp2.gpu_data(), this->blobs_[0]->mutable_gpu_diff());
@@ -389,24 +639,24 @@ void RBMPM2Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 	}
 
 	if (this->param_propagate_down_[1]) {
-		Blob<Dtype> tmp(repX.shape());
+		Blob<Dtype> tmp(X0.shape());
 
-		caffe_gpu_sub(tmp.count(), X0S, X1S, tmp.mutable_gpu_data());
+		caffe_gpu_sub(tmp.count(), X0_data, X1_data, tmp.mutable_gpu_data());
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
     			this->K_, 1, this->M_ * repTimes,
-    			(Dtype)1., tmp.gpu_data(), ones_m_rep.gpu_data(),
+    			(Dtype)1., tmp.gpu_data(), ones_m_1.gpu_data(),
     			(Dtype)0., this->blobs_[1]->mutable_gpu_diff());
 
     	caffe_gpu_scal<Dtype>(this->blobs_[1]->count(), scalar, this->blobs_[1]->mutable_gpu_diff());
 	}
 
 	if (this->param_propagate_down_[2]) {
-		Blob<Dtype> tmp(repH.shape());
+		Blob<Dtype> tmp(H0.shape());
 
-		caffe_gpu_sub(tmp.count(), H0S, H1S, tmp.mutable_gpu_data());
+		caffe_gpu_sub(tmp.count(), H0_data, H1_data, tmp.mutable_gpu_data());
     	caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
     			this->N_, 1, this->M_ * repTimes,
-    			(Dtype)1., tmp.gpu_data(), ones_m_rep.gpu_data(),
+    			(Dtype)1., tmp.gpu_data(), ones_m_1.gpu_data(),
     			(Dtype)0., this->blobs_[2]->mutable_gpu_diff());
 
     	caffe_gpu_scal<Dtype>(this->blobs_[2]->count(), scalar, this->blobs_[2]->mutable_gpu_diff());

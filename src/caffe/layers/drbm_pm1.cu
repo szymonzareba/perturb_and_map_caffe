@@ -9,7 +9,13 @@ template <typename Dtype>
 void DRBMPM1Layer<Dtype>::generatePerturbations_gpu() {
 	Blob<Dtype> ra;
 	for(int i = 0; i < this->biases.size(); i++){
-		caffe_copy(this->pertBiases[i]->count(), this->biases[i]->gpu_data(), this->pertBiases[i]->mutable_gpu_data());
+		//caffe_copy(this->pertBiases[i]->count(), this->biases[i]->gpu_data(), this->pertBiases[i]->mutable_gpu_data());
+
+		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+				this->M_, this->layer_sizes[i], 1,
+				(Dtype)1., this->ones_m.gpu_data(), this->biases[i]->gpu_data(),
+				(Dtype)0., this->pertBiases[i]->mutable_gpu_data());
+
 		ra.ReshapeLike(*this->pertBiases[i]);
 		MLGRNG<Dtype>::getInstance().mlg_gpu_gumbel(ra.count(), ra.mutable_gpu_data());
 		caffe_gpu_add(this->pertBiases[i]->count(), this->pertBiases[i]->gpu_data(), ra.gpu_data(), this->pertBiases[i]->mutable_gpu_data());

@@ -173,8 +173,10 @@ class RBMPM2Layer : public RBMPMLayer<Dtype> {
   explicit RBMPM2Layer(const LayerParameter& param)
       : RBMPMLayer<Dtype>(param) {}
   virtual inline const char* type() const { return "RBM PM2"; }
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+        const vector<Blob<Dtype>*>& top);
 
-  enum { Random };
+  enum { Random, ExpProb, AbsExpProb };
 
  protected:
   virtual void gradient_cpu(const vector<Blob<Dtype>*>& top,
@@ -184,6 +186,9 @@ class RBMPM2Layer : public RBMPMLayer<Dtype> {
 
   virtual void find_w_mask_gpu(Blob<Dtype>* W);
   virtual void find_w_mask_cpu(Blob<Dtype>* W);
+
+  bool persistent;
+  Blob<Dtype> X1_chain;
 };
 
 } // namespace Caffe

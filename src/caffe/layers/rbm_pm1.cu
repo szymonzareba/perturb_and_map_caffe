@@ -99,11 +99,11 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			(Dtype)1., ones.gpu_data(), this->blobs_[1]->gpu_data(),
 			(Dtype)0., bTmp.mutable_gpu_data());
 
+	if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(bTmp.count(), bTmp.gpu_data())) LOG(INFO) << "bTmp not finite" << std::endl;
+	if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(bTmp.count(), bTmp.gpu_data())) LOG(INFO) << "bTmp not in float range" << std::endl;
+
     bias_shape[0] = this->M_ * repTimes;
     bias_shape[1] = this->N_;
-
-    	if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(bTmp.count(), bTmp.gpu_data())) LOG(INFO) << "bTmp not finite" << std::endl;
-    	if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(bTmp.count(), bTmp.gpu_data())) LOG(INFO) << "bTmp not in float range" << std::endl;
 
 	Blob<Dtype> cTmp;
 	cTmp.Reshape( bias_shape );
