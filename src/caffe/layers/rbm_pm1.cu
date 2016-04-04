@@ -50,6 +50,12 @@ void RBMPM1Layer<Dtype>::gradient_gpu(const vector<Blob<Dtype>*>& top,
 			this->sample_gpu(H0.count(), H0.mutable_gpu_data());
 		}
 		break;
+		case RBMPMLayer<Dtype>::RandomizedGreedyEnergyOptimization:
+		{
+			this->replicate_data_gpu(repTimes, &this->H0, &H0);
+			this->sample_gpu(H0.count(), H0.mutable_gpu_data());
+		}
+		break;
 		default:
 		{
 			NOT_IMPLEMENTED;

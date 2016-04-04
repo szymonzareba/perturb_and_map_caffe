@@ -89,10 +89,9 @@ class DRBMPMLayer : public DRBMLayer<Dtype> {
   virtual ~DRBMPMLayer();
 
   enum {
+	  GreedyEnergyOptimization,
   	  CoordinateDescent,
-  	  FreeEnergyGradientDescent,
-  	  FreeEnergyGradientDescentEta2,
-  	  GreedyEnergyOptimization};
+  	  RandomizedGreedyEnergyOptimization};
 
  protected:
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,

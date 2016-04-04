@@ -64,6 +64,9 @@ template <typename Dtype>
 __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* bMask, const Dtype* b, Dtype* x);
 
 template <typename Dtype>
+__global__ void add_with_mask_kernel_2(const int n, const Dtype* mask, const Dtype* a, const Dtype* b, Dtype* x);
+
+template <typename Dtype>
 __global__ void binarization_kernel(const int count, const Dtype threshold, const Dtype* x, Dtype* y);
 
 template <typename Dtype>

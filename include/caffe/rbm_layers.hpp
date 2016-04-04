@@ -132,7 +132,8 @@ class RBMPMLayer : public RBMLayer<Dtype> {
 	  CoordinateDescent,
 	  FreeEnergyGradientDescent,
 	  FreeEnergyGradientDescentEta2,
-	  GreedyEnergyOptimization};
+	  GreedyEnergyOptimization,
+	  RandomizedGreedyEnergyOptimization};
 
  protected:
   virtual void find_map_cpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>* b, Blob<Dtype>* c, Blob<Dtype>* W);

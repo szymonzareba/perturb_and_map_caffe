@@ -234,6 +234,85 @@ void RBMPMLayer<Dtype>::find_map_gpu(Blob<Dtype>* X, Blob<Dtype>* H, Blob<Dtype>
 			}
 		}
 		break;
+		case RBMPMLayer::RandomizedGreedyEnergyOptimization:
+		{
+			const int steps = this->layer_param_.rbm_param().rbm_pm_param().rgeo_param().steps();
+			const float maskout = this->layer_param_.rbm_param().rbm_pm_param().rgeo_param().maskout();
+
+			Dtype* XS = X->mutable_gpu_data();
+			Dtype* HS = H->mutable_gpu_data();
+
+			Blob<Dtype> dX;
+			dX.ReshapeLike(*X);
+
+			Blob<Dtype> dH;
+			dH.ReshapeLike(*H);
+
+			Dtype* dXData = dX.mutable_gpu_data();
+			Dtype* dHData = dH.mutable_gpu_data();
+
+			Blob<Dtype> maskoutX;
+			maskoutX.ReshapeLike(*X);
+
+			Blob<Dtype> maskoutH;
+			maskoutH.ReshapeLike(*H);
+
+			for(int step = 0; step < steps; step++){
+
+				// dX
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
+						m, this->K_, this->N_,
+						(Dtype)1., HS, W->gpu_data(),
+						(Dtype)0., dXData);
+
+				caffe_gpu_add(X->count(), dXData, b->gpu_data(), dXData);
+
+				// dH
+				caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans,
+						m, this->N_, this->K_,
+						(Dtype)1., XS, W->gpu_data(),
+						(Dtype)0., dHData);
+
+				caffe_gpu_add(H->count(), dHData, c->gpu_data(), dHData);
+
+
+				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(dH.count()), CAFFE_CUDA_NUM_THREADS>>>(dH.count(), dHData);
+				CUDA_POST_KERNEL_CHECK;
+
+				sample_ge0_kernel<Dtype><<<CAFFE_GET_BLOCKS(dX.count()), CAFFE_CUDA_NUM_THREADS>>>(dX.count(), dXData);
+				CUDA_POST_KERNEL_CHECK;
+
+				// uniform
+				MLGRNG<Dtype>::getInstance().mlg_gpu_uniform(maskoutX.count(), maskoutX.mutable_gpu_data());
+				MLGRNG<Dtype>::getInstance().mlg_gpu_uniform(maskoutH.count(), maskoutH.mutable_gpu_data());
+
+				// binarization, uniform > 1-maskout (1-0.9) = 1
+				// 10% - 0, 90% - 1
+				binarization_kernel<Dtype><<<CAFFE_GET_BLOCKS(dX.count()), CAFFE_CUDA_NUM_THREADS>>>
+							(dX.count(), 1.0 - maskout, maskoutX.mutable_gpu_data(), maskoutX.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				binarization_kernel<Dtype><<<CAFFE_GET_BLOCKS(dH.count()), CAFFE_CUDA_NUM_THREADS>>>
+							(dH.count(), 1.0 - maskout, maskoutH.mutable_gpu_data(), maskoutH.mutable_gpu_data());
+				CUDA_POST_KERNEL_CHECK;
+
+				// X = 10% dXData + 90% XS
+				add_with_mask_kernel_2<Dtype><<<CAFFE_GET_BLOCKS(dX.count()), CAFFE_CUDA_NUM_THREADS>>>
+						(maskoutX.count(), maskoutX.gpu_data(), dXData, XS, XS);
+				CUDA_POST_KERNEL_CHECK;
+
+				// H = 10% dHData + 90% HS
+				add_with_mask_kernel_2<Dtype><<<CAFFE_GET_BLOCKS(dH.count()), CAFFE_CUDA_NUM_THREADS>>>
+						(maskoutH.count(), maskoutH.gpu_data(), dHData, HS, HS);
+				CUDA_POST_KERNEL_CHECK;
+
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(X->count(), X->gpu_data())) LOG(INFO) << "X not finite" << std::endl;
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_finite(H->count(), H->gpu_data())) LOG(INFO) << "H not finite" << std::endl;
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(H->count(), H->gpu_data())) LOG(INFO) << "H not in float range" << std::endl;
+					if(MLGASSERT<Dtype>::getInstance().mlg_gpu_range(X->count(), X->gpu_data())) LOG(INFO) << "X not in float range" << std::endl;
+			}
+		}
+		break;
 		default:
 		{
 			NOT_IMPLEMENTED;

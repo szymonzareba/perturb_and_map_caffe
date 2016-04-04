@@ -61,6 +61,8 @@ __global__ void add_scaled_kernel(const int n, const Dtype alpha, const Dtype* a
   }
 }
 
+
+
 template <typename Dtype>
 __global__ void relax_0_1_kernel(const int n, Dtype* x) {
   CUDA_KERNEL_LOOP(index, n) {
@@ -85,6 +87,13 @@ template <typename Dtype>
 __global__ void add_with_mask_kernel(const int n, const Dtype* a, const Dtype* bMask, const Dtype* b, Dtype* x){
 	CUDA_KERNEL_LOOP(index, n){
 		x[index] = a[index] + bMask[index] * b[index];
+	}
+}
+
+template <typename Dtype>
+__global__ void add_with_mask_kernel_2(const int n, const Dtype* mask, const Dtype* a, const Dtype* b, Dtype* x){
+	CUDA_KERNEL_LOOP(index, n){
+		x[index] = mask[index] * a[index] +  (1.0 - mask[index]) * b[index];
 	}
 }
 
@@ -395,6 +404,12 @@ __global__ void add_with_mask_kernel<float>(const int n, const float* a, const f
 
 template
 __global__ void add_with_mask_kernel<double>(const int n, const double* a, const double* bMask, const double* b, double* x);
+
+template
+__global__ void add_with_mask_kernel_2<float>(const int n, const float* mask, const float* a, const float* b, float* x);
+
+template
+__global__ void add_with_mask_kernel_2<double>(const int n, const double* mask, const double* a, const double* b, double* x);
 
 template
 __global__ void cumulative_sum_kernel(const int n, const float* g_idata, float* g_odata);

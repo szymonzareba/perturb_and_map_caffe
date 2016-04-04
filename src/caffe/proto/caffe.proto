@@ -464,6 +464,7 @@ enum MAPMethod {
     FreeEnergyGradientDescent = 1;
     FreeEnergyGradientDescentEta2 = 2;
     GreedyEnergyOptimization = 3;
+    RandomizedGreedyEnergyOptimization = 4;
 }
 
 message RBMPMParameter {
@@ -476,6 +477,7 @@ message RBMPMParameter {
 	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
 	optional FreeEnergyGradientDescentMAPParameter fegd_param = 4;
 	optional GreedyEnergyOptimizationMAPParameter geo_param = 8;
+	optional RandomizedGreedyEnergyOptimizationMAPParameter rgeo_param = 10;
 	
 	// PM orders
 	optional RBMPM1Parameter rbm_pm1_param = 5;
@@ -509,6 +511,11 @@ message GreedyEnergyOptimizationMAPParameter {
 	optional uint32 steps = 1 [default = 1];
 }
 
+message RandomizedGreedyEnergyOptimizationMAPParameter {
+	optional uint32 steps = 1 [default = 1];
+	optional float maskout = 2 [default = 0.9]; 
+}
+
 //////////
 // DRBM //
 //////////
@@ -535,6 +542,7 @@ message DRBMPMParameter {
 	
 	optional GreedyEnergyOptimizationMAPParameter geo_param = 3;
 	optional CoordinateDescentMAPParameter cd_param = 4;
+	optional RandomizedGreedyEnergyOptimizationMAPParameter rgeo_param = 5;
 }
 
 message DRBMPM1Parameter {
