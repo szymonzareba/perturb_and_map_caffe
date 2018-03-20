@@ -1,0 +1,15 @@
+net: "examples/drbm_mf/mnist_drbm_mf.prototxt"
+test_iter: 100
+test_interval: 500
+test_compute_loss: true
+early_stopping:30
+base_lr: 0.01
+lr_policy: "fixed"
+display: 100
+max_iter: 9000
+weight_decay: 0
+snapshot: 1000
+snapshot_prefix: "examples/drbm_mf/mnist_drbm_mf"
+momentum: 0.9
+solver_type:SGD
+solver_mode: CPU

@@ -1,0 +1,1 @@
+/home/szymon.zareba/cuda-workspace/caffe/examples/test/example_train_h5/example.h5

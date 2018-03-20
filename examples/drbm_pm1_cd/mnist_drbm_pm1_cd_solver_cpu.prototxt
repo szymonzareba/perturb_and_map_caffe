@@ -1,0 +1,15 @@
+net: "examples/drbm_pm1_cd/mnist_drbm_pm1_cd.prototxt"
+test_iter: 100
+test_interval: 500
+test_compute_loss: true
+early_stopping:30
+base_lr: 0.001
+lr_policy: "fixed"
+display: 100
+max_iter: 250000
+weight_decay: 0.0002
+snapshot: 1000
+snapshot_prefix: "examples/drbm_pm1_cd/mnist_drbm_pm1_cd"
+momentum: 0.9
+solver_type:SGD
+solver_mode: CPU

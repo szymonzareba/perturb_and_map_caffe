@@ -13,6 +13,11 @@
 #include "caffe/syncedmem.hpp"
 #include "caffe/util/math_functions.hpp"
 
+#include <iostream>
+#include <boost/iostreams/stream.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+namespace io = boost::iostreams;
+
 namespace caffe {
 
 /// @brief Fills a Blob with constant or randomly-generated data.
@@ -262,6 +267,31 @@ class BilinearFiller : public Filler<Dtype> {
   }
 };
 
+template <typename Dtype>
+class FileFiller : public Filler<Dtype> {
+ public:
+  explicit FileFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+  virtual void Fill(Blob<Dtype>* blob) {
+    Dtype* data = blob->mutable_cpu_data();
+    io::stream<io::mapped_file_source> str(this->filler_param_.path());
+    for(int i = 0; i < blob->count(); i++ )
+    {
+    	//LOG(INFO) << i;
+    	str >> data[i];
+
+    	if(data[i] > 5 || data[i] < -5){
+    		LOG(INFO) << i << " " << data[i];
+    	}
+
+    	if(str.eof())
+    	{
+    		LOG(FATAL) << "End of parameter file";
+    	}
+    }
+  }
+};
+
 /**
  * @brief Get a specific filler from the specification given in FillerParameter.
  *
@@ -285,6 +315,8 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new MSRAFiller<Dtype>(param);
   } else if (type == "bilinear") {
     return new BilinearFiller<Dtype>(param);
+  } else if (type == "file"){
+	return new FileFiller<Dtype>(param);
   } else {
     CHECK(false) << "Unknown filler name: " << param.type();
   }

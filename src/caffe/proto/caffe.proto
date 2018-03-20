@@ -59,6 +59,7 @@ message FillerParameter {
     AVERAGE = 2;
   }
   optional VarianceNorm variance_norm = 8 [default = FAN_IN];
+  optional string path = 300;
 }
 
 message NetParameter {
@@ -234,6 +235,8 @@ message SolverParameter {
 
   // If false, don't save a snapshot after training finishes.
   optional bool snapshot_after_train = 28 [default = true];
+  
+  optional int32 early_stopping = 100 [default = 0];
 }
 
 // A message that stores the solver snapshots
@@ -300,8 +303,8 @@ message ParamSpec {
 
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
-//
-// LayerParameter next available layer-specific ID: 139 (last added: tile_param)
+// LayerParameter next available layer-specific ID: 137 (last added: reduction_param)
+// MLG - start with 3. ID: 303 (last added: RBMReturnParameter)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -385,7 +388,171 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  optional RBMParameter rbm_param = 301;
+  optional RBMReturnParameter rbm_return_param = 302;
+  optional BinarizationParameter bin_param = 303;
+  optional BunchOfNeuronsParameter bunch_param = 304;
+  optional DRBMParameter drbm_param = 305;
 }
+
+
+////////////////////////
+///// MLG Protobuf /////
+////////////////////////
+
+//////////////////////
+// Bunch of Neurons //
+//////////////////////
+
+message BunchOfNeuronsParameter {
+  optional double bunch_a = 1 [default = 1];
+  optional double bunch_b = 2 [default = 1];
+}
+
+
+//////////////////
+// Binarization //
+//////////////////
+
+message BinarizationParameter {
+  optional bool work = 1 [default = false];
+  optional float threshold = 2 [default = 0.5];
+}
+
+
+/////////
+// RBM //
+/////////
+
+message RBMReturnParameter {
+
+}
+
+enum LogLikelihoodAprox {
+    AIS = 0;
+    RAIS = 1;
+    CSL = 2;
+    REC = 3;
+}
+
+message RBMParameter {
+  optional uint32 num_hidden = 1; // The number of hidden units for the layer
+  optional FillerParameter w_filler = 2; // The filler for the weights
+  optional FillerParameter b_filler = 3; // The filler for the bias
+  optional FillerParameter c_filler = 4; // The filler for the bias  
+  optional LogLikelihoodAprox llAprox = 5 [default = AIS];
+  optional int32 axis = 6 [default = 1];
+  
+  // Gradient specific parameters
+  optional RBMCDParameter rbm_cd_param = 7;
+  optional RBMPCDParameter rbm_pcd_param = 12;
+  optional RBMPMParameter rbm_pm_param = 13;
+}
+
+
+message RBMCDParameter {
+  optional uint32 gibbs_steps = 1 [default = 1];
+}
+
+message RBMPCDParameter {
+  optional int32 gibbs_steps = 1 [default = 1];
+  optional int32 gibbs_chains = 2 [default = -1];
+}
+
+enum MAPMethod {
+    CoordinateDescent = 0;
+    FreeEnergyGradientDescent = 1;
+    FreeEnergyGradientDescentEta2 = 2;
+    GreedyEnergyOptimization = 3;
+    RandomizedGreedyEnergyOptimization = 4;
+}
+
+message RBMPMParameter {
+	optional MAPMethod map_method = 1 [default = CoordinateDescent];
+	optional uint32 batch_repeats = 2 [default = 1];
+	optional float pert_str = 7 [default = 1];
+	optional bool persistent = 9 [default = false];
+	
+	// map parameters
+	optional CoordinateDescentMAPParameter coordinate_descent_param = 3;
+	optional FreeEnergyGradientDescentMAPParameter fegd_param = 4;
+	optional GreedyEnergyOptimizationMAPParameter geo_param = 8;
+	optional RandomizedGreedyEnergyOptimizationMAPParameter rgeo_param = 10;
+	
+	// PM orders
+	optional RBMPM1Parameter rbm_pm1_param = 5;
+	optional RBMPM2Parameter rbm_pm2_param = 6;
+}
+
+message RBMPM1Parameter {
+}
+
+enum RBMPM2WPerturbation {
+    Random = 0;
+    ExpProb = 1;
+    AbsExpProb = 2;
+}
+
+message RBMPM2Parameter {
+	optional RBMPM2WPerturbation w_pert_param = 1 [default = Random];
+}
+
+message FreeEnergyGradientDescentMAPParameter {
+	optional uint32 descent_steps = 1 [default = 1];
+	optional float eta_0 = 2 [default = 0.1];
+	optional float eta_decay = 3 [default = 0];
+}
+
+message CoordinateDescentMAPParameter {
+	optional uint32 descent_steps = 1 [default = 1];
+}
+
+message GreedyEnergyOptimizationMAPParameter {
+	optional uint32 steps = 1 [default = 1];
+}
+
+message RandomizedGreedyEnergyOptimizationMAPParameter {
+	optional uint32 steps = 1 [default = 1];
+	optional float maskout = 2 [default = 0.9]; 
+}
+
+//////////
+// DRBM //
+//////////
+
+message DRBMParameter {
+	repeated uint32 num_hidden = 1; // The number of hidden units for the layer
+	repeated FillerParameter bias_filler = 2; // The filler for the bias
+	repeated FillerParameter weight_filler = 3; // The filler for the weights
+	optional int32 axis = 4 [default = 1];
+	optional int32 mf_steps = 7 [default = 1];
+	
+	optional DRBMMeanFieldParameter drbm_mf_param = 5;
+	optional DRBMPMParameter drbm_pm_param = 6;
+	
+}
+
+message DRBMMeanFieldParameter {
+	optional int32 steps = 1 [default = 1];
+}
+
+message DRBMPMParameter {
+	optional MAPMethod map_method = 1 [default = GreedyEnergyOptimization];
+	optional DRBMPM1Parameter drbm_pm1_param = 2; 
+	
+	optional GreedyEnergyOptimizationMAPParameter geo_param = 3;
+	optional CoordinateDescentMAPParameter cd_param = 4;
+	optional RandomizedGreedyEnergyOptimizationMAPParameter rgeo_param = 5;
+}
+
+message DRBMPM1Parameter {
+
+}
+
+
+////////////////////////////
+///// END MLG Protobuf /////
+////////////////////////////
 
 // Message that stores parameters used to apply transformation
 // to the data layer's data

@@ -1,0 +1,25 @@
+addpath ./matlab
+
+model = '/home/szymon.zareba/cuda-workspace/caffe/examples/rbm_pm1/mnist_rbm_pm1.prototxt';
+weights = '/home/szymon.zareba/cuda-workspace/caffe/examples/rbm_pm1/mnist_rbm_pm1_iter_100.caffemodel';
+net = caffe.Net(model,weights,'train');
+
+close all
+figure
+subplot(2,3,1);
+imshow(visualiseParameters(normalizeParameters(net.layer_vec(1,2).params(1,1).get_data()),28,28));
+subplot(2,3,4);
+a = net.layer_vec(1,2).params(1,1).get_data();
+hist(a(:));
+
+subplot(2,3,2);
+imshow(visualiseParameters(normalizeParameters(net.layer_vec(1,2).params(1,1).get_data() * net.layer_vec(1,3).params(1,1).get_data()),28,28));
+subplot(2,3,5);
+a = net.layer_vec(1,3).params(1,1).get_data();
+hist(a(:));
+
+subplot(2,3,3);
+imshow(visualiseParameters(normalizeParameters(net.layer_vec(1,2).params(1,1).get_data() * net.layer_vec(1,3).params(1,1).get_data() * net.layer_vec(1,4).params(1,1).get_data() ),28,28));
+subplot(2,3,6);
+a = net.layer_vec(1,4).params(1,1).get_data();
+hist(a(:));

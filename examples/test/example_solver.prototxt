@@ -1,0 +1,13 @@
+net: "examples/test/example.prototxt"
+base_lr: 0.01
+lr_policy: "fixed"
+gamma: 0
+stepsize: 10000
+display: 100
+max_iter: 65000
+weight_decay: 0
+snapshot: 1000
+snapshot_prefix: "examples/test/example"
+momentum: 0
+# solver mode: CPU or GPU
+solver_mode: GPU

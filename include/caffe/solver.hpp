@@ -119,6 +119,11 @@ class Solver {
   // True iff a request to stop early was received.
   bool requested_early_exit_;
 
+  // MLG Early stopping
+  float earlyStopLoss;
+  int earlyStopIter;
+  // MLG Early stopping end
+
   DISABLE_COPY_AND_ASSIGN(Solver);
 };
 
